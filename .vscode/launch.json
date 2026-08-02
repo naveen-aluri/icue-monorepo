@@ -5,45 +5,46 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "icue_monorepo",
-      "request": "launch",
-      "type": "dart"
-    },
-    {
-      "name": "icue_face_sdk",
-      "cwd": "packages/icue_face_sdk",
-      "request": "launch",
-      "type": "dart"
-    },
-    {
-      "name": "icue_face_sdk (profile mode)",
-      "cwd": "packages/icue_face_sdk",
+      "name": "ADMIN DEV",
+      "cwd": "apps/icueadmin",
       "request": "launch",
       "type": "dart",
-      "flutterMode": "profile"
+      "args": ["--flavor", "dev"],
+      "toolArgs": ["--dart-define", "ENVIRONMENT=DEV"]
     },
     {
-      "name": "icue_face_sdk (release mode)",
-      "cwd": "packages/icue_face_sdk",
+      "name": "ADMIN PROD",
+      "cwd": "apps/icueadmin",
       "request": "launch",
       "type": "dart",
-      "flutterMode": "release"
+      "args": ["--flavor", "prod"],
+      // "flutterMode": "release",
+      "toolArgs": ["--dart-define", "ENVIRONMENT=PROD"]
     },
     {
-      "name": "example",
+      "name": "ADMIN WEB",
+      "type": "dart",
+      "cwd": "apps/icueadmin",
+      "request": "launch",
+      "args": ["-d", "chrome"],
+      // "args": ["-d", "web-server"],
+      "toolArgs": ["--dart-define", "ENVIRONMENT=DEV"]
+    },
+    {
+      "name": "face sdk example",
       "cwd": "packages/icue_face_sdk/example",
       "request": "launch",
       "type": "dart"
     },
     {
-      "name": "example (profile mode)",
+      "name": "face sdk example (profile mode)",
       "cwd": "packages/icue_face_sdk/example",
       "request": "launch",
       "type": "dart",
       "flutterMode": "profile"
     },
     {
-      "name": "example (release mode)",
+      "name": "face sdk example (release mode)",
       "cwd": "packages/icue_face_sdk/example",
       "request": "launch",
       "type": "dart",

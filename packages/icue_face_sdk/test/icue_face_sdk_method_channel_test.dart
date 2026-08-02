@@ -150,11 +150,11 @@ void main() {
       );
       final liveRes = await platform.startLiveAttendance(
         roster: [profile],
-        config: const AttendanceConfig(lens: CameraLens.back),
+        config: const AttendanceConfig(),
       );
       final multiRes = await platform.startMultiPhotoAttendance(
         roster: [profile],
-        config: const AttendanceConfig(lens: CameraLens.back),
+        config: const AttendanceConfig(),
       );
 
       expect(liveRes, isNotNull);

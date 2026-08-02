@@ -14,12 +14,6 @@ class AttendanceRecord {
     this.sourceImagePath,
   });
 
-  final String personId;
-  final double confidenceScore;
-  final FaceBoundingBox? boundingBox;
-  final DateTime timestamp;
-  final String? sourceImagePath;
-
   factory AttendanceRecord.fromMap(Map<Object?, Object?> map) {
     final rawBox = map['boundingBox'] as Map<Object?, Object?>?;
     final rawTimestamp = map['timestampMillis'] as int?;
@@ -33,6 +27,12 @@ class AttendanceRecord {
       sourceImagePath: map['sourceImagePath'] as String?,
     );
   }
+
+  final String personId;
+  final double confidenceScore;
+  final FaceBoundingBox? boundingBox;
+  final DateTime timestamp;
+  final String? sourceImagePath;
 
   Map<String, Object?> toMap() => {
     'personId': personId,
@@ -70,19 +70,6 @@ class AttendanceResult {
     this.photosProcessed = 0,
     this.capturedImagePaths = const <String>[],
   });
-
-  final List<AttendanceRecord> present;
-  final List<String> absentPersonIds;
-  final int unrecognizedFaceCount;
-  final int totalRosterCount;
-  final DateTime sessionStartTime;
-  final DateTime sessionEndTime;
-  final AttendanceMode mode;
-  final int photosProcessed;
-  final List<String> capturedImagePaths;
-
-  double get attendancePercentage =>
-      totalRosterCount == 0 ? 0.0 : (present.length / totalRosterCount) * 100;
 
   factory AttendanceResult.fromMap(Map<Object?, Object?> map) {
     final rawPresent = (map['present'] as List<Object?>? ?? const [])
@@ -128,6 +115,19 @@ class AttendanceResult {
       capturedImagePaths: rawCapturedImages,
     );
   }
+
+  final List<AttendanceRecord> present;
+  final List<String> absentPersonIds;
+  final int unrecognizedFaceCount;
+  final int totalRosterCount;
+  final DateTime sessionStartTime;
+  final DateTime sessionEndTime;
+  final AttendanceMode mode;
+  final int photosProcessed;
+  final List<String> capturedImagePaths;
+
+  double get attendancePercentage =>
+      totalRosterCount == 0 ? 0.0 : (present.length / totalRosterCount) * 100;
 
   Map<String, Object?> toMap() => {
     'present': present.map((e) => e.toMap()).toList(growable: false),
