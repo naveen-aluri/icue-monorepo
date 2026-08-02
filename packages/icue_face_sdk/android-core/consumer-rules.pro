@@ -1,0 +1,1 @@
+-keep class school.icue.face.core.** { *; }

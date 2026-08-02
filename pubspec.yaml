@@ -1,0 +1,11 @@
+name: icue_monorepo
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+workspace:
+  - packages/icue_face_sdk
+
+dev_dependencies:
+  melos: ^8.2.2
