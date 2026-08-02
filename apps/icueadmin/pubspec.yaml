@@ -45,6 +45,8 @@ dependencies:
   #     url: https://dart.cloudsmith.io/icue/icue-sdk/
   #   version: ^0.0.2
   collection: ^1.19.1
+  icue_face_sdk:
+    path: ../../packages/icue_face_sdk
 
 dev_dependencies:
   flutter_test:

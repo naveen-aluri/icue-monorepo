@@ -189,8 +189,9 @@ class _CreateAttendancePageState extends State<CreateAttendancePage> {
 
     if (previousIndex >= studentProvider.attendanceStudents.length ||
         previousIndex < 0) {
-      if (kDebugMode)
+      if (kDebugMode) {
         log('Error: Swiped index $previousIndex is out of bounds.');
+      }
       return;
     }
 

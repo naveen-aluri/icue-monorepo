@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../dialogs/attendance_mode_dialog.dart';
 import '../../models/assigned_entities.dart';
 import '../../services/analytics_service.dart';
 import '../../services/injectable.dart';
 import '../../widgets/no_data_widget.dart';
 import 'create_attendance_page.dart';
+import 'sdk_attendance_page.dart';
 
 class SectionsPage extends StatefulWidget {
   const SectionsPage({super.key, required this.standard});
@@ -34,16 +36,35 @@ class _SectionsPageState extends State<SectionsPage> {
         child: ElevatedButton(
           onPressed: section == null
               ? null
-              : () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CreateAttendancePage(
-                        standard: widget.standard,
-                        section: section!,
-                      ),
-                    ),
+              : () async {
+                  final mode = await showDialog<AttendanceModeOption>(
+                    context: context,
+                    builder: (context) => const AttendanceModeDialog(),
                   );
+
+                  if (mode == null || !context.mounted) return;
+
+                  if (mode == AttendanceModeOption.manual) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CreateAttendancePage(
+                          standard: widget.standard,
+                          section: section!,
+                        ),
+                      ),
+                    );
+                  } else if (mode == AttendanceModeOption.sdk) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SdkAttendancePage(
+                          standard: widget.standard,
+                          section: section!,
+                        ),
+                      ),
+                    );
+                  }
                 },
           child: const Text('Start Attendance'),
         ),
