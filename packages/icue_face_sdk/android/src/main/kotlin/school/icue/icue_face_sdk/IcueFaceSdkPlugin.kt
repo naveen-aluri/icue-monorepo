@@ -77,6 +77,9 @@ class IcueFaceSdkPlugin :
                 "captureEmbeddingWithCamera" -> captureEmbeddingWithCamera(call, result)
                 "startFaceTracking" -> startFaceTracking(call, result)
                 "stopFaceTracking" -> stopFaceTracking(result)
+                "startLiveAttendance" -> startLiveAttendance(call, result)
+                "startMultiPhotoAttendance" -> startMultiPhotoAttendance(call, result)
+                "processAttendanceFromImages" -> processAttendanceFromImages(call, result)
                 "dispose" -> dispose(result)
                 else -> result.notImplemented()
             }
@@ -345,6 +348,143 @@ class IcueFaceSdkPlugin :
         result.success(null)
     }
 
+    private fun startLiveAttendance(call: MethodCall, result: MethodChannel.Result) {
+        val hostActivity = activity
+            ?: return result.error("NO_ACTIVITY", "A foreground Android activity is required", null)
+        val currentSdk = sdk
+            ?: return result.error("NOT_INITIALIZED", "SDK is not initialized", null)
+        val roster = call.roster()
+        val options = call.recognitionOptions(RecognitionMode.MULTI)
+        val autoFinish = call.argument<Boolean>("autoFinish") ?: false
+        try {
+            IcueFaceCamera.openLiveAttendance(
+                hostActivity,
+                currentSdk,
+                roster,
+                call.cameraLens(),
+                options.maxFaces,
+                options.threshold,
+                autoFinish,
+                object : IcueFaceCamera.AttendanceCallback {
+                    override fun onCompleted(resultMap: Map<String, Any?>) {
+                        result.success(resultMap)
+                    }
+
+                    override fun onCancelled() {
+                        result.success(null)
+                    }
+
+                    override fun onError(code: String, message: String) {
+                        result.error(code, message, null)
+                    }
+                },
+            )
+        } catch (error: IllegalStateException) {
+            result.error("CAMERA_BUSY", error.message, null)
+        }
+    }
+
+    private fun startMultiPhotoAttendance(call: MethodCall, result: MethodChannel.Result) {
+        val hostActivity = activity
+            ?: return result.error("NO_ACTIVITY", "A foreground Android activity is required", null)
+        val currentSdk = sdk
+            ?: return result.error("NOT_INITIALIZED", "SDK is not initialized", null)
+        val roster = call.roster()
+        val options = call.recognitionOptions(RecognitionMode.MULTI)
+        val autoFinish = call.argument<Boolean>("autoFinish") ?: false
+        try {
+            IcueFaceCamera.openMultiPhotoAttendance(
+                hostActivity,
+                currentSdk,
+                roster,
+                call.cameraLens(),
+                options.maxFaces,
+                options.threshold,
+                autoFinish,
+                object : IcueFaceCamera.AttendanceCallback {
+                    override fun onCompleted(resultMap: Map<String, Any?>) {
+                        result.success(resultMap)
+                    }
+
+                    override fun onCancelled() {
+                        result.success(null)
+                    }
+
+                    override fun onError(code: String, message: String) {
+                        result.error(code, message, null)
+                    }
+                },
+            )
+        } catch (error: IllegalStateException) {
+            result.error("CAMERA_BUSY", error.message, null)
+        }
+    }
+
+    private fun processAttendanceFromImages(call: MethodCall, result: MethodChannel.Result) {
+        val imagePaths = call.required<List<String>>("imagePaths")
+        val roster = call.roster()
+        val threshold = (call.argument<Number>("threshold") ?: FaceSdkDefaults.DEFAULT_MATCH_THRESHOLD).toFloat()
+        launchSdkCall(result) { currentSdk ->
+            val startTimeMs = System.currentTimeMillis()
+            val markedPresentMap = mutableMapOf<String, Map<String, Any?>>()
+            var unrecognizedFaceCount = 0
+
+            for (imagePath in imagePaths) {
+                val bitmap = withContext(Dispatchers.IO) {
+                    loadUprightBitmap(imagePath, false)
+                } ?: continue
+                try {
+                    val recognitions = currentSdk.recognize(
+                        bitmap,
+                        roster,
+                        RecognitionMode.MULTI,
+                        FaceSdkDefaults.DEFAULT_MAX_FACES,
+                        threshold,
+                    )
+                    var frameUnrecognized = 0
+                    recognitions.forEach { recognition ->
+                        if (recognition.matched && recognition.personId != null) {
+                            val pId = recognition.personId
+                            val existing = markedPresentMap[pId]
+                            val existingScore = (existing?.get("score") as? Number)?.toDouble() ?: 0.0
+                            if (existing == null || recognition.score > existingScore) {
+                                markedPresentMap[pId] = mapOf(
+                                    "personId" to pId,
+                                    "score" to recognition.score.toDouble(),
+                                    "boundingBox" to listOf(recognition.boundingBox).toBoundingBoxChannelValue().first(),
+                                    "timestampMillis" to System.currentTimeMillis(),
+                                    "sourceImagePath" to imagePath,
+                                )
+                            }
+                        } else {
+                            frameUnrecognized++
+                        }
+                    }
+                    unrecognizedFaceCount += frameUnrecognized
+                } finally {
+                    if (!bitmap.isRecycled) bitmap.recycle()
+                }
+            }
+
+            val endTimeMs = System.currentTimeMillis()
+            val presentList = markedPresentMap.values.toList()
+            val presentIds = markedPresentMap.keys.toSet()
+            val absentIds = roster.map { it.personId }.filter { !presentIds.contains(it) }
+
+            mapOf(
+                "present" to presentList,
+                "absentPersonIds" to absentIds,
+                "unrecognizedFaceCount" to unrecognizedFaceCount,
+                "totalRosterCount" to roster.size,
+                "sessionStartTimeMs" to startTimeMs,
+                "sessionEndTimeMs" to endTimeMs,
+                "mode" to "batchImages",
+                "photosProcessed" to imagePaths.size,
+                "capturedImagePaths" to imagePaths,
+            )
+        }
+    }
+
     private fun dispose(result: MethodChannel.Result) {
         IcueFaceCamera.stop()
         scope.launch {
@@ -421,6 +561,17 @@ class IcueFaceSdkPlugin :
             val personId = map["personId"] as? String
                 ?: throw IllegalArgumentException("profiles[$index].personId is required")
             IcueFaceProfile(personId, map["embedding"].toFloatArray("profiles[$index].embedding"))
+        }
+    }
+
+    private fun MethodCall.roster(): List<IcueFaceProfile> {
+        val rawProfiles = argument<List<*>>("roster") ?: required<List<*>>("profiles")
+        return rawProfiles.mapIndexed { index, raw ->
+            val map = raw as? Map<*, *>
+                ?: throw IllegalArgumentException("roster[$index] must be a map")
+            val personId = map["personId"] as? String
+                ?: throw IllegalArgumentException("roster[$index].personId is required")
+            IcueFaceProfile(personId, map["embedding"].toFloatArray("roster[$index].embedding"))
         }
     }
 

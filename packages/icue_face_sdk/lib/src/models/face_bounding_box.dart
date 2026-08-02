@@ -23,6 +23,14 @@ class FaceBoundingBox {
   final double bottom;
   final int? trackingId;
 
+  Map<String, Object?> toMap() => {
+    'left': left,
+    'top': top,
+    'right': right,
+    'bottom': bottom,
+    'trackingId': trackingId,
+  };
+
   double get width => right - left;
   double get height => bottom - top;
 

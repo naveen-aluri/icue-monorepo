@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'icue_face_sdk_platform_interface.dart';
+import 'src/models/attendance_models.dart';
 import 'src/models/camera_lens.dart';
 import 'src/models/face_bounding_box.dart';
 import 'src/models/face_profile.dart';
@@ -13,6 +14,7 @@ import 'src/models/recognition_mode.dart';
 import 'src/models/sdk_constants.dart';
 
 export 'src/icue_face_sdk_exception.dart';
+export 'src/models/attendance_models.dart';
 export 'src/models/camera_lens.dart';
 export 'src/models/face_bounding_box.dart';
 export 'src/models/face_profile.dart';
@@ -180,6 +182,36 @@ class IcueFaceSdk {
 
   /// Closes the SDK-owned live tracking camera, if it is open.
   Future<void> stopFaceTracking() => _platform.stopFaceTracking();
+
+  /// Opens the SDK-owned camera in Live Attendance Mode.
+  ///
+  /// Sweeps the camera across the classroom while real-time deduplicated
+  /// attendance records are updated on screen.
+  Future<AttendanceResult?> startLiveAttendance({
+    required List<FaceProfile> roster,
+    AttendanceConfig config = const AttendanceConfig(),
+  }) => _platform.startLiveAttendance(roster: roster, config: config);
+
+  /// Opens the SDK-owned camera in Multi-Group Photo Capture Attendance Mode.
+  ///
+  /// Allows capturing multiple small group photos of the classroom to cover all students,
+  /// deduplicating recognitions across snapshots into a single [AttendanceResult].
+  Future<AttendanceResult?> startMultiPhotoAttendance({
+    required List<FaceProfile> roster,
+    AttendanceConfig config = const AttendanceConfig(),
+  }) => _platform.startMultiPhotoAttendance(roster: roster, config: config);
+
+  /// Runs programmatic attendance recognition across multiple image files [imagePaths]
+  /// against a given class [roster].
+  Future<AttendanceResult> processAttendanceFromImages({
+    required List<String> imagePaths,
+    required List<FaceProfile> roster,
+    double threshold = defaultFaceMatchThreshold,
+  }) => _platform.processAttendanceFromImages(
+    imagePaths: imagePaths,
+    roster: roster,
+    threshold: threshold,
+  );
 
   /// Releases native resources and disposes the SDK instance.
   Future<void> dispose() => _platform.dispose();

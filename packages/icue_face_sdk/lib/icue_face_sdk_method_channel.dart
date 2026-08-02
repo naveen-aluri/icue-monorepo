@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'icue_face_sdk_platform_interface.dart';
 import 'src/icue_face_sdk_exception.dart';
+import 'src/models/attendance_models.dart';
 import 'src/models/camera_lens.dart';
 import 'src/models/face_bounding_box.dart';
 import 'src/models/face_profile.dart';
@@ -234,6 +235,59 @@ class MethodChannelIcueFaceSdk extends IcueFaceSdkPlatform {
 
   @override
   Future<void> stopFaceTracking() => _invoke<void>('stopFaceTracking');
+
+  @override
+  Future<AttendanceResult?> startLiveAttendance({
+    required List<FaceProfile> roster,
+    required AttendanceConfig config,
+  }) async {
+    final result = await _invoke<Map<Object?, Object?>>(
+      'startLiveAttendance',
+      <String, Object>{
+        'roster': roster.map((profile) => profile.toMap()).toList(),
+        'threshold': config.threshold,
+        'maxFaces': config.maxFacesPerFrame,
+        'lens': config.lens.nativeValue,
+        'autoFinish': config.autoFinishWhenComplete,
+      },
+    );
+    return result == null ? null : AttendanceResult.fromMap(result);
+  }
+
+  @override
+  Future<AttendanceResult?> startMultiPhotoAttendance({
+    required List<FaceProfile> roster,
+    required AttendanceConfig config,
+  }) async {
+    final result = await _invoke<Map<Object?, Object?>>(
+      'startMultiPhotoAttendance',
+      <String, Object>{
+        'roster': roster.map((profile) => profile.toMap()).toList(),
+        'threshold': config.threshold,
+        'maxFaces': config.maxFacesPerFrame,
+        'lens': config.lens.nativeValue,
+        'autoFinish': config.autoFinishWhenComplete,
+      },
+    );
+    return result == null ? null : AttendanceResult.fromMap(result);
+  }
+
+  @override
+  Future<AttendanceResult> processAttendanceFromImages({
+    required List<String> imagePaths,
+    required List<FaceProfile> roster,
+    required double threshold,
+  }) async {
+    final result = await _invoke<Map<Object?, Object?>>(
+      'processAttendanceFromImages',
+      <String, Object>{
+        'imagePaths': imagePaths,
+        'roster': roster.map((profile) => profile.toMap()).toList(),
+        'threshold': threshold,
+      },
+    );
+    return AttendanceResult.fromMap(result!);
+  }
 
   @override
   Future<void> dispose() => _invoke<void>('dispose');

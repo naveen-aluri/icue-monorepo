@@ -40,6 +40,48 @@ object IcueFaceCamera {
         activity.startActivity(cameraIntent(activity, sessionId, MODE_TRACKING, lens))
     }
 
+    fun openLiveAttendance(
+        activity: Activity,
+        sdk: IcueFaceSdk,
+        roster: List<IcueFaceProfile>,
+        lens: IcueCameraLens = IcueCameraLens.BACK,
+        maxFaces: Int = FaceSdkDefaults.DEFAULT_MAX_FACES,
+        threshold: Float = FaceSdkDefaults.DEFAULT_MATCH_THRESHOLD,
+        autoFinish: Boolean = false,
+        callback: AttendanceCallback,
+    ) {
+        val sessionId = CameraSessionRegistry.registerLiveAttendance(
+            sdk,
+            roster,
+            maxFaces,
+            threshold,
+            autoFinish,
+            callback,
+        )
+        activity.startActivity(cameraIntent(activity, sessionId, MODE_LIVE_ATTENDANCE, lens))
+    }
+
+    fun openMultiPhotoAttendance(
+        activity: Activity,
+        sdk: IcueFaceSdk,
+        roster: List<IcueFaceProfile>,
+        lens: IcueCameraLens = IcueCameraLens.BACK,
+        maxFaces: Int = FaceSdkDefaults.DEFAULT_MAX_FACES,
+        threshold: Float = FaceSdkDefaults.DEFAULT_MATCH_THRESHOLD,
+        autoFinish: Boolean = false,
+        callback: AttendanceCallback,
+    ) {
+        val sessionId = CameraSessionRegistry.registerMultiPhotoAttendance(
+            sdk,
+            roster,
+            maxFaces,
+            threshold,
+            autoFinish,
+            callback,
+        )
+        activity.startActivity(cameraIntent(activity, sessionId, MODE_MULTI_PHOTO_ATTENDANCE, lens))
+    }
+
     fun stop() {
         CameraSessionRegistry.stopActiveActivity()
     }
@@ -53,6 +95,12 @@ object IcueFaceCamera {
     interface TrackingListener {
         fun onFaces(result: IcueFaceTrackingResult)
         fun onStopped()
+        fun onError(code: String, message: String)
+    }
+
+    interface AttendanceCallback {
+        fun onCompleted(resultMap: Map<String, Any?>)
+        fun onCancelled()
         fun onError(code: String, message: String)
     }
 
@@ -72,6 +120,8 @@ object IcueFaceCamera {
     internal const val EXTRA_LENS = "icue.camera.lens"
     internal const val MODE_CAPTURE = "capture"
     internal const val MODE_TRACKING = "tracking"
+    internal const val MODE_LIVE_ATTENDANCE = "live_attendance"
+    internal const val MODE_MULTI_PHOTO_ATTENDANCE = "multi_photo_attendance"
 }
 
 internal sealed interface CameraSession {
@@ -88,6 +138,24 @@ internal sealed interface CameraSession {
         val maxFaces: Int,
         val threshold: Float,
         val listener: IcueFaceCamera.TrackingListener,
+    ) : CameraSession
+
+    data class LiveAttendance(
+        override val sdk: IcueFaceSdk,
+        val roster: List<IcueFaceProfile>,
+        val maxFaces: Int,
+        val threshold: Float,
+        val autoFinish: Boolean,
+        val callback: IcueFaceCamera.AttendanceCallback,
+    ) : CameraSession
+
+    data class MultiPhotoAttendance(
+        override val sdk: IcueFaceSdk,
+        val roster: List<IcueFaceProfile>,
+        val maxFaces: Int,
+        val threshold: Float,
+        val autoFinish: Boolean,
+        val callback: IcueFaceCamera.AttendanceCallback,
     ) : CameraSession
 }
 
@@ -112,6 +180,28 @@ internal object CameraSessionRegistry {
         CameraSession.Tracking(sdk, profiles.toList(), maxFaces, threshold, listener),
     )
 
+    fun registerLiveAttendance(
+        sdk: IcueFaceSdk,
+        roster: List<IcueFaceProfile>,
+        maxFaces: Int,
+        threshold: Float,
+        autoFinish: Boolean,
+        callback: IcueFaceCamera.AttendanceCallback,
+    ): String = register(
+        CameraSession.LiveAttendance(sdk, roster.toList(), maxFaces, threshold, autoFinish, callback),
+    )
+
+    fun registerMultiPhotoAttendance(
+        sdk: IcueFaceSdk,
+        roster: List<IcueFaceProfile>,
+        maxFaces: Int,
+        threshold: Float,
+        autoFinish: Boolean,
+        callback: IcueFaceCamera.AttendanceCallback,
+    ): String = register(
+        CameraSession.MultiPhotoAttendance(sdk, roster.toList(), maxFaces, threshold, autoFinish, callback),
+    )
+
     private fun register(newSession: CameraSession): String = synchronized(lock) {
         check(session == null) { "A face camera session is already active" }
         cancelTimeoutLocked()
@@ -131,6 +221,14 @@ internal object CameraSessionRegistry {
                             "Camera activity failed to launch in time",
                         )
                         is CameraSession.Tracking -> expiredSession.listener.onError(
+                            "CAMERA_LAUNCH_TIMEOUT",
+                            "Camera activity failed to launch in time",
+                        )
+                        is CameraSession.LiveAttendance -> expiredSession.callback.onError(
+                            "CAMERA_LAUNCH_TIMEOUT",
+                            "Camera activity failed to launch in time",
+                        )
+                        is CameraSession.MultiPhotoAttendance -> expiredSession.callback.onError(
                             "CAMERA_LAUNCH_TIMEOUT",
                             "Camera activity failed to launch in time",
                         )
@@ -171,6 +269,8 @@ internal object CameraSessionRegistry {
             when (stoppedSession) {
                 is CameraSession.Capture -> stoppedSession.callback.onCancelled()
                 is CameraSession.Tracking -> stoppedSession.listener.onStopped()
+                is CameraSession.LiveAttendance -> stoppedSession.callback.onCancelled()
+                is CameraSession.MultiPhotoAttendance -> stoppedSession.callback.onCancelled()
                 null -> Unit
             }
         }

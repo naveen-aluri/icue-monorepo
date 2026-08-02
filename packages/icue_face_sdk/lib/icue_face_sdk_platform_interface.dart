@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'icue_face_sdk_method_channel.dart';
+import 'src/models/attendance_models.dart';
 import 'src/models/camera_lens.dart';
 import 'src/models/face_bounding_box.dart';
 import 'src/models/face_profile.dart';
@@ -124,6 +125,28 @@ abstract class IcueFaceSdkPlatform extends PlatformInterface {
 
   Future<void> stopFaceTracking() =>
       throw UnimplementedError('stopFaceTracking() has not been implemented.');
+
+  Future<AttendanceResult?> startLiveAttendance({
+    required List<FaceProfile> roster,
+    required AttendanceConfig config,
+  }) => throw UnimplementedError(
+    'startLiveAttendance() has not been implemented.',
+  );
+
+  Future<AttendanceResult?> startMultiPhotoAttendance({
+    required List<FaceProfile> roster,
+    required AttendanceConfig config,
+  }) => throw UnimplementedError(
+    'startMultiPhotoAttendance() has not been implemented.',
+  );
+
+  Future<AttendanceResult> processAttendanceFromImages({
+    required List<String> imagePaths,
+    required List<FaceProfile> roster,
+    required double threshold,
+  }) => throw UnimplementedError(
+    'processAttendanceFromImages() has not been implemented.',
+  );
 
   Future<void> dispose() =>
       throw UnimplementedError('dispose() has not been implemented.');

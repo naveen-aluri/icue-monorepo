@@ -45,9 +45,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import school.icue.face.core.FaceSdkErrorCode
 import school.icue.face.core.FaceSdkException
+import school.icue.face.core.image.YuvFrameConverter
 import school.icue.face.core.model.IcueBoundingBox
+import school.icue.face.core.model.IcueFaceProfile
 import school.icue.face.core.model.IcueYuv420Frame
 import school.icue.face.core.model.RecognitionMode
 
@@ -65,6 +69,12 @@ class IcueFaceCameraActivity : ComponentActivity() {
     private var captureRequested = false
     private var completed = false
     private var capturedEmbedding: FloatArray? = null
+    private var finalAttendanceResult: Map<String, Any?>? = null
+    private val markedPresentMap = java.util.concurrent.ConcurrentHashMap<String, Map<String, Any?>>()
+    private val capturedPhotoPaths = java.util.Collections.synchronizedList(mutableListOf<String>())
+    private var unrecognizedCount = 0
+    private var photosCapturedCount = 0
+    private var sessionStartTimeMs = 0L
     private var frontCamera = true
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -79,6 +89,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        sessionStartTimeMs = System.currentTimeMillis()
         sessionId = intent.getStringExtra(IcueFaceCamera.EXTRA_SESSION_ID)
         session = CameraSessionRegistry.resolve(sessionId)
         if (session == null) {
@@ -101,11 +112,16 @@ class IcueFaceCameraActivity : ComponentActivity() {
         analysisScope.cancel()
         analysisExecutor.shutdown()
         val embedding = capturedEmbedding
+        val attendance = finalAttendanceResult
         val activeSession = session
         super.onDestroy()
         when {
             embedding != null && activeSession is CameraSession.Capture ->
                 activeSession.callback.onCaptured(embedding)
+            attendance != null && activeSession is CameraSession.LiveAttendance ->
+                activeSession.callback.onCompleted(attendance)
+            attendance != null && activeSession is CameraSession.MultiPhotoAttendance ->
+                activeSession.callback.onCompleted(attendance)
             !completed -> notifyStopped()
         }
         CameraSessionRegistry.clear(sessionId)
@@ -134,10 +150,11 @@ class IcueFaceCameraActivity : ComponentActivity() {
             gravity = Gravity.CENTER
             setPadding(dp(14), dp(8), dp(14), dp(8))
             background = roundedPill(0xCC0B1422.toInt(), 0x4400E5FF.toInt())
-            text = if (session is CameraSession.Capture) {
-                "⚠️ Position student face in frame"
-            } else {
-                "ATTENDANCE • SCANNING CLASSROOM"
+            text = when (val activeSession = session) {
+                is CameraSession.Capture -> "⚠️ Position student face in frame"
+                is CameraSession.LiveAttendance -> "LIVE ATTENDANCE • 0/${activeSession.roster.size} PRESENT (0%)"
+                is CameraSession.MultiPhotoAttendance -> "MULTI-PHOTO • 0 PHOTO(S) • 0/${activeSession.roster.size} PRESENT"
+                else -> "ATTENDANCE • SCANNING CLASSROOM"
             }
         }
 
@@ -157,7 +174,12 @@ class IcueFaceCameraActivity : ComponentActivity() {
         val titleStack = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(TextView(this@IcueFaceCameraActivity).apply {
-                text = if (session is CameraSession.Capture) "STUDENT ENROLLMENT" else "STUDENT ATTENDANCE SCAN"
+                text = when (session) {
+                    is CameraSession.Capture -> "STUDENT ENROLLMENT"
+                    is CameraSession.LiveAttendance -> "LIVE CLASS ATTENDANCE"
+                    is CameraSession.MultiPhotoAttendance -> "MULTI-GROUP ATTENDANCE"
+                    else -> "STUDENT ATTENDANCE SCAN"
+                }
                 setTextColor(COLOR_ACCENT_CYAN)
                 textSize = 13f
                 letterSpacing = 0.18f
@@ -209,7 +231,8 @@ class IcueFaceCameraActivity : ComponentActivity() {
             addView(statusPill, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         }
 
-        // Floating Circular Shutter Button for Capture mode (No bottom card panel!)
+        var actionButton: View? = null
+
         if (session is CameraSession.Capture) {
             val outerRing = View(this).apply {
                 background = GradientDrawable().apply {
@@ -238,6 +261,65 @@ class IcueFaceCameraActivity : ComponentActivity() {
                     triggerCaptureFlash()
                 }
             }
+            actionButton = shutterButton
+        } else if (session is CameraSession.LiveAttendance) {
+            val liveSession = session as CameraSession.LiveAttendance
+            actionButton = TextView(this).apply {
+                text = "✓ FINISH ATTENDANCE"
+                setTextColor(Color.WHITE)
+                textSize = 13f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                letterSpacing = 0.08f
+                gravity = Gravity.CENTER
+                setPadding(dp(24), dp(12), dp(24), dp(12))
+                background = roundedRipple(0xDD092418.toInt(), 0x44FFFFFF, 24f, 0xAA00E676.toInt())
+                setOnClickListener {
+                    completeAttendanceSession("liveStream", liveSession.roster, liveSession.callback)
+                }
+            }
+        } else if (session is CameraSession.MultiPhotoAttendance) {
+            val multiSession = session as CameraSession.MultiPhotoAttendance
+            val outerRing = View(this).apply {
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setStroke(dp(3), COLOR_ACCENT_CYAN)
+                    setColor(Color.TRANSPARENT)
+                }
+            }
+            val innerDot = View(this).apply {
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(COLOR_ACCENT_CYAN)
+                }
+            }
+            shutterButton = FrameLayout(this).apply {
+                contentDescription = "Snap Group Photo"
+                addView(outerRing, FrameLayout.LayoutParams(dp(64), dp(64), Gravity.CENTER))
+                addView(innerDot, FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER))
+                setOnClickListener {
+                    captureRequested = true
+                    statusPill.text = "Analyzing group photo..."
+                }
+            }
+            val finishBtn = TextView(this).apply {
+                text = "✓ FINISH"
+                setTextColor(Color.WHITE)
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                letterSpacing = 0.06f
+                gravity = Gravity.CENTER
+                setPadding(dp(16), dp(10), dp(16), dp(10))
+                background = roundedRipple(0xDD092418.toInt(), 0x44FFFFFF, 20f, 0xAA00E676.toInt())
+                setOnClickListener {
+                    completeAttendanceSession("multiPhoto", multiSession.roster, multiSession.callback)
+                }
+            }
+            actionButton = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(shutterButton, LinearLayout.LayoutParams(dp(64), dp(64)).apply { marginEnd = dp(16) })
+                addView(finishBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            }
         }
 
         val root = FrameLayout(this).apply {
@@ -248,7 +330,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
                 dp(180),
                 Gravity.TOP,
             ))
-            if (session is CameraSession.Capture) {
+            if (session is CameraSession.Capture || session is CameraSession.LiveAttendance || session is CameraSession.MultiPhotoAttendance) {
                 addView(bottomScrim, FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     dp(160),
@@ -280,10 +362,10 @@ class IcueFaceCameraActivity : ComponentActivity() {
                 topMargin = dp(68)
             })
 
-            shutterButton?.let { shutter ->
-                addView(shutter, FrameLayout.LayoutParams(
-                    dp(76),
-                    dp(76),
+            actionButton?.let { bar ->
+                addView(bar, FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
                     Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
                 ).apply {
                     bottomMargin = dp(32)
@@ -309,10 +391,10 @@ class IcueFaceCameraActivity : ComponentActivity() {
                 topMargin = safeInsets.top + dp(68)
                 topPillContainer.layoutParams = this
             }
-            shutterButton?.let { shutter ->
-                (shutter.layoutParams as FrameLayout.LayoutParams).apply {
+            actionButton?.let { bar ->
+                (bar.layoutParams as FrameLayout.LayoutParams).apply {
                     bottomMargin = safeInsets.bottom + dp(32)
-                    shutter.layoutParams = this
+                    bar.layoutParams = this
                 }
             }
             windowInsets
@@ -409,6 +491,8 @@ class IcueFaceCameraActivity : ComponentActivity() {
                 when (val activeSession = session) {
                     is CameraSession.Capture -> processCapture(activeSession, frame)
                     is CameraSession.Tracking -> processTracking(activeSession, frame)
+                    is CameraSession.LiveAttendance -> processLiveAttendance(activeSession, frame)
+                    is CameraSession.MultiPhotoAttendance -> processMultiPhotoAttendance(activeSession, frame)
                     null -> Unit
                 }
             } finally {
@@ -511,6 +595,226 @@ class IcueFaceCameraActivity : ComponentActivity() {
         }
     }
 
+    private suspend fun processLiveAttendance(
+        activeSession: CameraSession.LiveAttendance,
+        frame: IcueYuv420Frame,
+    ) {
+        try {
+            val recognitions = if (activeSession.roster.isEmpty()) {
+                emptyList()
+            } else {
+                activeSession.sdk.recognizeYuv420(
+                    frame = frame,
+                    profiles = activeSession.roster,
+                    mode = RecognitionMode.MULTI,
+                    maxFaces = activeSession.maxFaces,
+                    threshold = activeSession.threshold,
+                )
+            }
+            var frameUnrecognized = 0
+            recognitions.forEach { recognition ->
+                if (recognition.matched && recognition.personId != null) {
+                    val pId = recognition.personId!!
+                    val existing = markedPresentMap[pId]
+                    val existingScore = (existing?.get("score") as? Number)?.toDouble() ?: 0.0
+                    if (existing == null || recognition.score > existingScore) {
+                        markedPresentMap[pId] = mapOf(
+                            "personId" to pId,
+                            "score" to recognition.score.toDouble(),
+                            "boundingBox" to recognition.boundingBox.toChannelValue(),
+                            "timestampMillis" to System.currentTimeMillis(),
+                        )
+                    }
+                } else {
+                    frameUnrecognized++
+                }
+            }
+            if (frameUnrecognized > unrecognizedCount) {
+                unrecognizedCount = frameUnrecognized
+            }
+
+            val (width, height) = frame.outputDimensions()
+            val faces = recognitions.map { it.boundingBox }
+            val totalRoster = activeSession.roster.size
+            val presentCount = markedPresentMap.size
+            val percent = if (totalRoster == 0) 0 else (presentCount * 100 / totalRoster)
+
+            runOnUiThread {
+                overlay.update(
+                    faces,
+                    width,
+                    height,
+                    recognitions.map { recognition ->
+                        if (recognition.matched && recognition.personId != null) {
+                            "${recognition.personId} • ${(recognition.score * 100).toInt()}%"
+                        } else {
+                            "UNREGISTERED STUDENT"
+                        }
+                    },
+                )
+                statusPill.text = "LIVE ATTENDANCE • $presentCount/$totalRoster PRESENT ($percent%)"
+                statusPill.background = roundedPill(0xCC0B1422.toInt(), 0x6600E676.toInt())
+            }
+
+            if (activeSession.autoFinish && totalRoster > 0 && presentCount >= totalRoster) {
+                completeAttendanceSession("liveStream", activeSession.roster, activeSession.callback)
+            }
+        } catch (error: Throwable) {
+            val code = (error as? FaceSdkException)?.code?.name ?: "ATTENDANCE_FAILED"
+            fail(code, error.message ?: "Live attendance failed")
+        }
+    }
+
+    private suspend fun processMultiPhotoAttendance(
+        activeSession: CameraSession.MultiPhotoAttendance,
+        frame: IcueYuv420Frame,
+    ) {
+        if (!captureRequested) {
+            val faces = activeSession.sdk.detectFacesInYuv420(frame)
+            val (width, height) = frame.outputDimensions()
+            val totalRoster = activeSession.roster.size
+            val presentCount = markedPresentMap.size
+            runOnUiThread {
+                overlay.update(faces, width, height)
+                statusPill.text = "MULTI-PHOTO • ${photosCapturedCount} PHOTO(S) • $presentCount/$totalRoster PRESENT"
+                statusPill.background = roundedPill(0xCC0B1422.toInt(), 0x6600E5FF.toInt())
+            }
+            return
+        }
+        captureRequested = false
+        try {
+            val recognitions = if (activeSession.roster.isEmpty()) {
+                emptyList()
+            } else {
+                activeSession.sdk.recognizeYuv420(
+                    frame = frame,
+                    profiles = activeSession.roster,
+                    mode = RecognitionMode.MULTI,
+                    maxFaces = activeSession.maxFaces,
+                    threshold = activeSession.threshold,
+                )
+            }
+            var frameUnrecognized = 0
+            recognitions.forEach { recognition ->
+                if (recognition.matched && recognition.personId != null) {
+                    val pId = recognition.personId!!
+                    val existing = markedPresentMap[pId]
+                    val existingScore = (existing?.get("score") as? Number)?.toDouble() ?: 0.0
+                    if (existing == null || recognition.score > existingScore) {
+                        markedPresentMap[pId] = mapOf(
+                            "personId" to pId,
+                            "score" to recognition.score.toDouble(),
+                            "boundingBox" to recognition.boundingBox.toChannelValue(),
+                            "timestampMillis" to System.currentTimeMillis(),
+                        )
+                    }
+                } else {
+                    frameUnrecognized++
+                }
+            }
+            saveLowQualityJpeg(frame)?.let { path ->
+                capturedPhotoPaths.add(path)
+            }
+            unrecognizedCount += frameUnrecognized
+            photosCapturedCount++
+
+            val (width, height) = frame.outputDimensions()
+            val faces = recognitions.map { it.boundingBox }
+            val totalRoster = activeSession.roster.size
+            val presentCount = markedPresentMap.size
+
+            runOnUiThread {
+                triggerCaptureFlash()
+                overlay.update(
+                    faces,
+                    width,
+                    height,
+                    recognitions.map { recognition ->
+                        if (recognition.matched && recognition.personId != null) {
+                            "${recognition.personId} • ${(recognition.score * 100).toInt()}%"
+                        } else {
+                            "UNREGISTERED STUDENT"
+                        }
+                    },
+                )
+                statusPill.text = "MULTI-PHOTO • ${photosCapturedCount} PHOTO(S) • $presentCount/$totalRoster PRESENT"
+                statusPill.background = roundedPill(0xCC0B1422.toInt(), 0x6600E676.toInt())
+                shutterButton?.apply {
+                    isEnabled = true
+                    alpha = 1.0f
+                }
+            }
+
+            if (activeSession.autoFinish && totalRoster > 0 && presentCount >= totalRoster) {
+                completeAttendanceSession("multiPhoto", activeSession.roster, activeSession.callback)
+            }
+        } catch (error: Throwable) {
+            fail("MULTI_PHOTO_FAILED", error.message ?: "Multi-photo group capture failed")
+        }
+    }
+
+    private fun saveLowQualityJpeg(frame: IcueYuv420Frame): String? {
+        return try {
+            val bitmap = YuvFrameConverter().yuv420ToBitmap(frame)
+            val maxDim = 1024
+            val scaledBitmap = if (bitmap.width > maxDim || bitmap.height > maxDim) {
+                val scale = maxDim.toFloat() / maxOf(bitmap.width, bitmap.height)
+                val newWidth = (bitmap.width * scale).toInt()
+                val newHeight = (bitmap.height * scale).toInt()
+                android.graphics.Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true).also {
+                    if (it !== bitmap) bitmap.recycle()
+                }
+            } else {
+                bitmap
+            }
+            val photoFile = File(cacheDir, "icue_attendance_${System.currentTimeMillis()}_${photosCapturedCount + 1}.jpg")
+            FileOutputStream(photoFile).use { out ->
+                scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 65, out)
+            }
+            if (!scaledBitmap.isRecycled) scaledBitmap.recycle()
+            photoFile.absolutePath
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    private fun completeAttendanceSession(
+        modeStr: String,
+        roster: List<IcueFaceProfile>,
+        callback: IcueFaceCamera.AttendanceCallback,
+    ) {
+        if (completed) return
+        completed = true
+        val endTimeMs = System.currentTimeMillis()
+        val presentList = markedPresentMap.values.toList()
+        val presentIds = markedPresentMap.keys.toSet()
+        val absentIds = roster.map { it.personId }.filter { !presentIds.contains(it) }
+
+        finalAttendanceResult = mapOf(
+            "present" to presentList,
+            "absentPersonIds" to absentIds,
+            "unrecognizedFaceCount" to unrecognizedCount,
+            "totalRosterCount" to roster.size,
+            "sessionStartTimeMs" to sessionStartTimeMs,
+            "sessionEndTimeMs" to endTimeMs,
+            "mode" to modeStr,
+            "photosProcessed" to photosCapturedCount,
+            "capturedImagePaths" to capturedPhotoPaths.toList(),
+        )
+        runOnUiThread {
+            statusPill.text = "Attendance session complete"
+            finish()
+        }
+    }
+
+    private fun IcueBoundingBox.toChannelValue() = mapOf(
+        "left" to left,
+        "top" to top,
+        "right" to right,
+        "bottom" to bottom,
+        "trackingId" to trackingId,
+    )
+
     private fun showFaces(faces: List<IcueBoundingBox>, frame: IcueYuv420Frame) {
         val (width, height) = frame.outputDimensions()
         runOnUiThread {
@@ -551,6 +855,8 @@ class IcueFaceCameraActivity : ComponentActivity() {
             when (val activeSession = session) {
                 is CameraSession.Capture -> activeSession.callback.onError(code, message)
                 is CameraSession.Tracking -> activeSession.listener.onError(code, message)
+                is CameraSession.LiveAttendance -> activeSession.callback.onError(code, message)
+                is CameraSession.MultiPhotoAttendance -> activeSession.callback.onError(code, message)
                 null -> Unit
             }
             finish()
@@ -561,6 +867,8 @@ class IcueFaceCameraActivity : ComponentActivity() {
         when (val activeSession = session) {
             is CameraSession.Capture -> activeSession.callback.onCancelled()
             is CameraSession.Tracking -> activeSession.listener.onStopped()
+            is CameraSession.LiveAttendance -> activeSession.callback.onCancelled()
+            is CameraSession.MultiPhotoAttendance -> activeSession.callback.onCancelled()
             null -> Unit
         }
     }

@@ -196,6 +196,83 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  Future<void> _startLiveClassAttendance() async {
+    if (_cameraBusy || _tracking) return;
+    if (_enrollments.isEmpty) {
+      _showMessage('Enroll at least one student face first');
+      return;
+    }
+    setState(() {
+      _cameraBusy = true;
+      _cameraStatus = 'Opening Live Class Attendance camera…';
+    });
+    try {
+      final roster = _enrollments.map((item) => item.toProfile()).toList();
+      final result = await _sdk.startLiveAttendance(roster: roster);
+      if (!mounted) return;
+      if (result == null) {
+        setState(() => _cameraStatus = 'Live attendance cancelled');
+        return;
+      }
+      setState(() => _cameraStatus = 'Attendance complete: ${result.present.length}/${result.totalRosterCount} present');
+      _showAttendanceSummary(result);
+    } catch (error) {
+      if (mounted) setState(() => _cameraStatus = 'Attendance error: $error');
+    } finally {
+      if (mounted) setState(() => _cameraBusy = false);
+    }
+  }
+
+  Future<void> _startMultiPhotoClassAttendance() async {
+    if (_cameraBusy || _tracking) return;
+    if (_enrollments.isEmpty) {
+      _showMessage('Enroll at least one student face first');
+      return;
+    }
+    setState(() {
+      _cameraBusy = true;
+      _cameraStatus = 'Opening Multi-Photo Group Attendance camera…';
+    });
+    try {
+      final roster = _enrollments.map((item) => item.toProfile()).toList();
+      final result = await _sdk.startMultiPhotoAttendance(roster: roster);
+      if (!mounted) return;
+      if (result == null) {
+        setState(() => _cameraStatus = 'Multi-photo attendance cancelled');
+        return;
+      }
+      setState(() => _cameraStatus = 'Multi-photo attendance complete: ${result.present.length}/${result.totalRosterCount} present');
+      _showAttendanceSummary(result);
+    } catch (error) {
+      if (mounted) setState(() => _cameraStatus = 'Attendance error: $error');
+    } finally {
+      if (mounted) setState(() => _cameraBusy = false);
+    }
+  }
+
+  void _showAttendanceSummary(AttendanceResult result) {
+    final navContext = _navigatorKey.currentContext;
+    if (navContext == null) return;
+    showModalBottomSheet<void>(
+      context: navContext,
+      backgroundColor: const Color(0xFF0F1A2A),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        builder: (_, scrollController) => _AttendanceSummarySheet(
+          result: result,
+          scrollController: scrollController,
+        ),
+      ),
+    );
+  }
+
   Future<void> _removeEnrollment(FaceEnrollment enrollment) async {
     final updated = await _store.remove(_enrollments, enrollment.name);
     if (!mounted) return;
@@ -265,6 +342,8 @@ class _MyAppState extends State<MyApp> {
                 onEnroll: _captureAndEnroll,
                 onStartTracking: _startTracking,
                 onStopTracking: _stopTracking,
+                onStartLiveAttendance: _startLiveClassAttendance,
+                onStartMultiPhotoAttendance: _startMultiPhotoClassAttendance,
                 onRemove: _removeEnrollment,
               );
             },
@@ -355,6 +434,8 @@ class _FaceDemoContent extends StatelessWidget {
     required this.onEnroll,
     required this.onStartTracking,
     required this.onStopTracking,
+    required this.onStartLiveAttendance,
+    required this.onStartMultiPhotoAttendance,
     required this.onRemove,
   });
 
@@ -366,6 +447,8 @@ class _FaceDemoContent extends StatelessWidget {
   final VoidCallback onEnroll;
   final VoidCallback onStartTracking;
   final VoidCallback onStopTracking;
+  final VoidCallback onStartLiveAttendance;
+  final VoidCallback onStartMultiPhotoAttendance;
   final ValueChanged<FaceEnrollment> onRemove;
 
   @override
@@ -513,7 +596,7 @@ class _FaceDemoContent extends StatelessWidget {
           ),
         const SizedBox(height: 28),
         const Text(
-          '2. Classroom Attendance Tracking',
+          '2. Whole Class Attendance Modes',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -522,7 +605,71 @@ class _FaceDemoContent extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Scan classroom video stream for real-time student attendance verification.',
+          'Take complete class attendance using live video scan or multi-group photo snapshots.',
+          style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 50,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF00E5FF),
+                    foregroundColor: const Color(0xFF041217),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: cameraBusy || enrollments.isEmpty
+                      ? null
+                      : onStartLiveAttendance,
+                  icon: const Icon(Icons.videocam_outlined, size: 20),
+                  label: const Text(
+                    'LIVE SCAN',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: SizedBox(
+                height: 50,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF00E5FF),
+                    side: const BorderSide(color: Color(0xFF00E5FF)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: cameraBusy || enrollments.isEmpty
+                      ? null
+                      : onStartMultiPhotoAttendance,
+                  icon: const Icon(Icons.collections_outlined, size: 20),
+                  label: const Text(
+                    'MULTI-PHOTO',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 28),
+        const Text(
+          '3. Single Live Tracking Stream',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFF1F5F9),
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Continuous live camera feed with real-time bounding box tracking overlay.',
           style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
         ),
         const SizedBox(height: 14),
@@ -540,14 +687,14 @@ class _FaceDemoContent extends StatelessWidget {
                   onPressed: cameraBusy ? null : onStopTracking,
                   icon: const Icon(Icons.stop_circle_outlined),
                   label: const Text(
-                    'STOP ATTENDANCE SCAN',
+                    'STOP LIVE STREAM',
                     style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
                   ),
                 )
               : OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF00E5FF),
-                    side: const BorderSide(color: Color(0xFF00E5FF)),
+                    foregroundColor: const Color(0xFF94A3B8),
+                    side: const BorderSide(color: Color(0x6694A3B8)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -557,7 +704,7 @@ class _FaceDemoContent extends StatelessWidget {
                       : onStartTracking,
                   icon: const Icon(Icons.center_focus_strong),
                   label: const Text(
-                    'START ATTENDANCE SCAN',
+                    'START LIVE STREAM',
                     style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
                   ),
                 ),
@@ -611,6 +758,220 @@ class _FaceDemoContent extends StatelessWidget {
           style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
         ),
       ],
+    );
+  }
+}
+
+class _AttendanceSummarySheet extends StatelessWidget {
+  const _AttendanceSummarySheet({
+    required this.result,
+    required this.scrollController,
+  });
+
+  final AttendanceResult result;
+  final ScrollController scrollController;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(Icons.assignment_turned_in, color: Color(0xFF00E5FF), size: 24),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Attendance Summary',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0x3300E676),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF00E676)),
+                ),
+                child: Text(
+                  '${result.attendancePercentage.toStringAsFixed(1)}%',
+                  style: const TextStyle(
+                    color: Color(0xFF00E676),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Chip(
+                backgroundColor: const Color(0xFF1E293B),
+                avatar: Icon(
+                  result.mode == AttendanceMode.liveStream
+                      ? Icons.videocam
+                      : Icons.photo_library,
+                  size: 16,
+                  color: const Color(0xFF00E5FF),
+                ),
+                label: Text(
+                  result.mode == AttendanceMode.liveStream
+                      ? 'Live Camera'
+                      : 'Multi-Photo Group',
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Chip(
+                backgroundColor: const Color(0xFF1E293B),
+                avatar: const Icon(Icons.people, size: 16, color: Color(0xFF94A3B8)),
+                label: Text(
+                  '${result.present.length}/${result.totalRosterCount} Present',
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          const Divider(color: Color(0x2200E5FF), height: 24),
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              children: [
+                if (result.present.isNotEmpty) ...[
+                  const Text(
+                    'PRESENT STUDENTS',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF00E676),
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...result.present.map(
+                    (rec) => Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D1726),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(Icons.check_circle, color: Color(0xFF00E676)),
+                        title: Text(
+                          rec.personId,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
+                        trailing: Text(
+                          '${(rec.confidenceScore * 100).toStringAsFixed(1)}% match',
+                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (result.absentPersonIds.isNotEmpty) ...[
+                  const Text(
+                    'ABSENT STUDENTS',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFFF5252),
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...result.absentPersonIds.map(
+                    (id) => Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D1726),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(Icons.cancel, color: Color(0xFFFF5252)),
+                        title: Text(
+                          id,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
+                        trailing: const Text(
+                          'Absent',
+                          style: TextStyle(color: Color(0xFFFF5252), fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                if (result.capturedImagePaths.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'CAPTURED GROUP PHOTOS FOR SERVER UPLOAD (${result.capturedImagePaths.length})',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF00E5FF),
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...result.capturedImagePaths.map(
+                    (path) => Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D1726),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0x3300E5FF)),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(Icons.image, color: Color(0xFF00E5FF)),
+                        title: Text(
+                          path.split('/').last,
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: Text(
+                          path,
+                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: const Icon(Icons.cloud_upload_outlined, color: Color(0xFF00E676), size: 20),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF00E5FF),
+                foregroundColor: const Color(0xFF041217),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close Summary'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
