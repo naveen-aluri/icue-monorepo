@@ -2,11 +2,7 @@ import 'camera_lens.dart';
 import 'face_bounding_box.dart';
 
 /// Represents the attendance scanning mode.
-enum AttendanceMode {
-  liveStream,
-  multiPhoto,
-  batchImages,
-}
+enum AttendanceMode { liveStream, multiPhoto, batchImages }
 
 /// Holds attendance matching details for an individual student.
 class AttendanceRecord {
@@ -57,12 +53,8 @@ class AttendanceRecord {
           sourceImagePath == other.sourceImagePath;
 
   @override
-  int get hashCode => Object.hash(
-    personId,
-    confidenceScore,
-    boundingBox,
-    sourceImagePath,
-  );
+  int get hashCode =>
+      Object.hash(personId, confidenceScore, boundingBox, sourceImagePath);
 }
 
 /// Contains full results of a whole-class attendance session.
@@ -97,8 +89,9 @@ class AttendanceResult {
         .cast<Map<Object?, Object?>>();
     final rawAbsent = (map['absentPersonIds'] as List<Object?>? ?? const [])
         .cast<String>();
-    final rawCapturedImages = (map['capturedImagePaths'] as List<Object?>? ?? const [])
-        .cast<String>();
+    final rawCapturedImages =
+        (map['capturedImagePaths'] as List<Object?>? ?? const [])
+            .cast<String>();
     final modeStr = map['mode'] as String? ?? 'liveStream';
     final AttendanceMode modeEnum;
     switch (modeStr) {
@@ -114,14 +107,20 @@ class AttendanceResult {
         break;
     }
 
-    final startMs = map['sessionStartTimeMs'] as int? ?? DateTime.now().millisecondsSinceEpoch;
-    final endMs = map['sessionEndTimeMs'] as int? ?? DateTime.now().millisecondsSinceEpoch;
+    final startMs =
+        map['sessionStartTimeMs'] as int? ??
+        DateTime.now().millisecondsSinceEpoch;
+    final endMs =
+        map['sessionEndTimeMs'] as int? ??
+        DateTime.now().millisecondsSinceEpoch;
 
     return AttendanceResult(
       present: rawPresent.map(AttendanceRecord.fromMap).toList(growable: false),
       absentPersonIds: rawAbsent,
       unrecognizedFaceCount: map['unrecognizedFaceCount'] as int? ?? 0,
-      totalRosterCount: map['totalRosterCount'] as int? ?? (rawPresent.length + rawAbsent.length),
+      totalRosterCount:
+          map['totalRosterCount'] as int? ??
+          (rawPresent.length + rawAbsent.length),
       sessionStartTime: DateTime.fromMillisecondsSinceEpoch(startMs),
       sessionEndTime: DateTime.fromMillisecondsSinceEpoch(endMs),
       mode: modeEnum,
@@ -150,7 +149,10 @@ class AttendanceConfig {
     this.maxFacesPerFrame = 20,
     this.lens = CameraLens.back,
     this.autoFinishWhenComplete = false,
-  }) : assert(threshold >= 0.0 && threshold <= 1.0, 'Threshold must be between 0.0 and 1.0'),
+  }) : assert(
+         threshold >= 0.0 && threshold <= 1.0,
+         'Threshold must be between 0.0 and 1.0',
+       ),
        assert(maxFacesPerFrame > 0, 'maxFacesPerFrame must be greater than 0');
 
   final double threshold;

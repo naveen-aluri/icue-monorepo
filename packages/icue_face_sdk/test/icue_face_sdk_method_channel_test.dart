@@ -53,7 +53,9 @@ void main() {
               'totalRosterCount': 2,
               'sessionStartTimeMs': 1000,
               'sessionEndTimeMs': 2000,
-              'mode': call.method == 'startMultiPhotoAttendance' ? 'multiPhoto' : 'liveStream',
+              'mode': call.method == 'startMultiPhotoAttendance'
+                  ? 'multiPhoto'
+                  : 'liveStream',
               'photosProcessed': 1,
             },
             _ => throw PlatformException(code: 'TEST_ERROR', message: 'failed'),
@@ -139,23 +141,26 @@ void main() {
     expect(calls[2].method, 'stopFaceTracking');
   });
 
-  test('passes attendance parameters and deserializes AttendanceResult', () async {
-    final profile = FaceProfile(
-      personId: 'Student1',
-      embedding: List<double>.filled(faceEmbeddingSize, 0),
-    );
-    final liveRes = await platform.startLiveAttendance(
-      roster: [profile],
-      config: const AttendanceConfig(lens: CameraLens.back),
-    );
-    final multiRes = await platform.startMultiPhotoAttendance(
-      roster: [profile],
-      config: const AttendanceConfig(lens: CameraLens.back),
-    );
+  test(
+    'passes attendance parameters and deserializes AttendanceResult',
+    () async {
+      final profile = FaceProfile(
+        personId: 'Student1',
+        embedding: List<double>.filled(faceEmbeddingSize, 0),
+      );
+      final liveRes = await platform.startLiveAttendance(
+        roster: [profile],
+        config: const AttendanceConfig(lens: CameraLens.back),
+      );
+      final multiRes = await platform.startMultiPhotoAttendance(
+        roster: [profile],
+        config: const AttendanceConfig(lens: CameraLens.back),
+      );
 
-    expect(liveRes, isNotNull);
-    expect(liveRes!.present.single.personId, 'Student1');
-    expect(liveRes.mode, AttendanceMode.liveStream);
-    expect(multiRes!.mode, AttendanceMode.multiPhoto);
-  });
+      expect(liveRes, isNotNull);
+      expect(liveRes!.present.single.personId, 'Student1');
+      expect(liveRes.mode, AttendanceMode.liveStream);
+      expect(multiRes!.mode, AttendanceMode.multiPhoto);
+    },
+  );
 }

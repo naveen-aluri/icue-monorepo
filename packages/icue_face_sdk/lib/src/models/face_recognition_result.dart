@@ -15,7 +15,9 @@ class FaceRecognitionResult {
       score: (map['score'] as num? ?? 0.0).toDouble(),
       matched: map['matched'] as bool? ?? false,
       boundingBox: FaceBoundingBox.fromMap(
-        rawBox is Map ? Map<Object?, Object?>.from(rawBox) : const <Object?, Object?>{},
+        rawBox is Map
+            ? Map<Object?, Object?>.from(rawBox)
+            : const <Object?, Object?>{},
       ),
     );
   }

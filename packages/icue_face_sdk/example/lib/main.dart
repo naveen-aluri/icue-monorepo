@@ -214,7 +214,10 @@ class _MyAppState extends State<MyApp> {
         setState(() => _cameraStatus = 'Live attendance cancelled');
         return;
       }
-      setState(() => _cameraStatus = 'Attendance complete: ${result.present.length}/${result.totalRosterCount} present');
+      setState(
+        () => _cameraStatus =
+            'Attendance complete: ${result.present.length}/${result.totalRosterCount} present',
+      );
       _showAttendanceSummary(result);
     } catch (error) {
       if (mounted) setState(() => _cameraStatus = 'Attendance error: $error');
@@ -241,7 +244,10 @@ class _MyAppState extends State<MyApp> {
         setState(() => _cameraStatus = 'Multi-photo attendance cancelled');
         return;
       }
-      setState(() => _cameraStatus = 'Multi-photo attendance complete: ${result.present.length}/${result.totalRosterCount} present');
+      setState(
+        () => _cameraStatus =
+            'Multi-photo attendance complete: ${result.present.length}/${result.totalRosterCount} present',
+      );
       _showAttendanceSummary(result);
     } catch (error) {
       if (mounted) setState(() => _cameraStatus = 'Attendance error: $error');
@@ -401,8 +407,9 @@ class _NameDialogState extends State<_NameDialog> {
               borderSide: BorderSide(color: Color(0xFF00E5FF)),
             ),
           ),
-          validator: (value) =>
-              value == null || value.trim().isEmpty ? 'Enter student name or roll number' : null,
+          validator: (value) => value == null || value.trim().isEmpty
+              ? 'Enter student name or roll number'
+              : null,
           onFieldSubmitted: (_) => _save(),
         ),
       ),
@@ -584,12 +591,18 @@ class _FaceDemoContent extends StatelessWidget {
                 ),
                 subtitle: Text(
                   '${enrollment.embedding.length}-dim biometric vector',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF94A3B8),
+                  ),
                 ),
                 trailing: IconButton(
                   tooltip: 'Remove ${enrollment.name}',
                   onPressed: tracking ? null : () => onRemove(enrollment),
-                  icon: const Icon(Icons.delete_outline, color: Color(0xFFFF5252)),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Color(0xFFFF5252),
+                  ),
                 ),
               ),
             ),
@@ -688,7 +701,10 @@ class _FaceDemoContent extends StatelessWidget {
                   icon: const Icon(Icons.stop_circle_outlined),
                   label: const Text(
                     'STOP LIVE STREAM',
-                    style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                    ),
                   ),
                 )
               : OutlinedButton.icon(
@@ -705,7 +721,10 @@ class _FaceDemoContent extends StatelessWidget {
                   icon: const Icon(Icons.center_focus_strong),
                   label: const Text(
                     'START LIVE STREAM',
-                    style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                    ),
                   ),
                 ),
         ),
@@ -788,7 +807,11 @@ class _AttendanceSummarySheet extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              const Icon(Icons.assignment_turned_in, color: Color(0xFF00E5FF), size: 24),
+              const Icon(
+                Icons.assignment_turned_in,
+                color: Color(0xFF00E5FF),
+                size: 24,
+              ),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
@@ -801,7 +824,10 @@ class _AttendanceSummarySheet extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0x3300E676),
                   borderRadius: BorderRadius.circular(12),
@@ -840,7 +866,11 @@ class _AttendanceSummarySheet extends StatelessWidget {
               const SizedBox(width: 8),
               Chip(
                 backgroundColor: const Color(0xFF1E293B),
-                avatar: const Icon(Icons.people, size: 16, color: Color(0xFF94A3B8)),
+                avatar: const Icon(
+                  Icons.people,
+                  size: 16,
+                  color: Color(0xFF94A3B8),
+                ),
                 label: Text(
                   '${result.present.length}/${result.totalRosterCount} Present',
                   style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -872,14 +902,23 @@ class _AttendanceSummarySheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: ListTile(
-                        leading: const Icon(Icons.check_circle, color: Color(0xFF00E676)),
+                        leading: const Icon(
+                          Icons.check_circle,
+                          color: Color(0xFF00E676),
+                        ),
                         title: Text(
                           rec.personId,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         trailing: Text(
                           '${(rec.confidenceScore * 100).toStringAsFixed(1)}% match',
-                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                          style: const TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ),
@@ -905,14 +944,23 @@ class _AttendanceSummarySheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: ListTile(
-                        leading: const Icon(Icons.cancel, color: Color(0xFFFF5252)),
+                        leading: const Icon(
+                          Icons.cancel,
+                          color: Color(0xFFFF5252),
+                        ),
                         title: Text(
                           id,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         trailing: const Text(
                           'Absent',
-                          style: TextStyle(color: Color(0xFFFF5252), fontSize: 12),
+                          style: TextStyle(
+                            color: Color(0xFFFF5252),
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ),
@@ -939,18 +987,32 @@ class _AttendanceSummarySheet extends StatelessWidget {
                         border: Border.all(color: const Color(0x3300E5FF)),
                       ),
                       child: ListTile(
-                        leading: const Icon(Icons.image, color: Color(0xFF00E5FF)),
+                        leading: const Icon(
+                          Icons.image,
+                          color: Color(0xFF00E5FF),
+                        ),
                         title: Text(
                           path.split('/').last,
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         subtitle: Text(
                           path,
-                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                          style: const TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 11,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        trailing: const Icon(Icons.cloud_upload_outlined, color: Color(0xFF00E676), size: 20),
+                        trailing: const Icon(
+                          Icons.cloud_upload_outlined,
+                          color: Color(0xFF00E676),
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
@@ -975,5 +1037,3 @@ class _AttendanceSummarySheet extends StatelessWidget {
     );
   }
 }
-
-
