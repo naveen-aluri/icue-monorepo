@@ -1,8 +1,6 @@
 # iCue Face SDK
 
-On-device face detection and MobileFaceNet recognition for native Android and
-Flutter Android applications. Images, embeddings, and matching remain on the
-device.
+On-device face detection and MobileFaceNet recognition for iOS, Android, and Flutter applications. Images, embeddings, and matching remain strictly on the device.
 
 ## Platform support
 
@@ -10,7 +8,8 @@ device.
 | --------------- | ------------------------------ |
 | Native Android  | Android 7.0 / API 24 and newer |
 | Flutter Android | Android 7.0 / API 24 and newer |
-| Flutter iOS     | Not implemented                |
+| Flutter iOS     | iOS 13.0 and newer             |
+
 
 The pipeline uses bundled ML Kit face detection and the bundled
 `mobilefacenet.tflite` model. Embeddings contain 192 normalized `float32`

@@ -1,5 +1,5 @@
 name: icue_face_sdk_example
-description: Demonstrates how to use the icue_face_sdk plugin on Android.
+description: Demonstrates how to use the icue_face_sdk plugin on Android and iOS.
 publish_to: none
 
 environment:

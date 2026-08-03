@@ -1,5 +1,5 @@
 name: icue_face_sdk
-description: On-device face detection and MobileFaceNet recognition for Android and Flutter Android apps.
+description: On-device face detection and MobileFaceNet recognition for iOS, Android, and Flutter apps.
 version: 0.2.0
 homepage: https://icue.school
 resolution: workspace
@@ -24,3 +24,6 @@ flutter:
       android:
         package: school.icue.icue_face_sdk
         pluginClass: IcueFaceSdkPlugin
+      ios:
+        pluginClass: IcueFaceSdkPlugin
+
