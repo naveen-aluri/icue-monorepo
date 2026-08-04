@@ -40,10 +40,7 @@ class _SectionsPageState extends State<SectionsPage> {
           onPressed: section == null
               ? null
               : () async {
-                  final mode = await showDialog<AttendanceModeOption>(
-                    context: context,
-                    builder: (context) => const AttendanceModeDialog(),
-                  );
+                  final mode = await AttendanceModeDialog.show(context);
 
                   if (mode == null || !context.mounted) return;
 
@@ -110,15 +107,9 @@ class _SectionsPageState extends State<SectionsPage> {
                   if (!mounted) return;
                   AppUtils.hideLoadingDialog(context);
 
-                  if (!exists) {
-                    setState(() {
-                      section = val;
-                    });
-                  } else {
-                    setState(() {
-                      section = null;
-                    });
-                  }
+                  setState(() {
+                    section = !exists ? val : null;
+                  });
                 } catch (e) {
                   if (mounted) {
                     AppUtils.hideLoadingDialog(context);

@@ -94,6 +94,34 @@ class CreateAttendance {
     'Period': period,
     'AttendanceMode': attendanceMode,
   };
+
+  CreateAttendance copyWith({
+    String? source,
+    List<AttendanceStudent>? students,
+    int? classId,
+    String? section,
+    String? standard,
+    String? attendanceDate,
+    String? attendanceTime,
+    int? month,
+    int? year,
+    String? period,
+    String? attendanceMode,
+  }) {
+    return CreateAttendance(
+      source: source ?? this.source,
+      students: students ?? this.students,
+      classId: classId ?? this.classId,
+      section: section ?? this.section,
+      standard: standard ?? this.standard,
+      attendanceDate: attendanceDate ?? this.attendanceDate,
+      attendanceTime: attendanceTime ?? this.attendanceTime,
+      month: month ?? this.month,
+      year: year ?? this.year,
+      period: period ?? this.period,
+      attendanceMode: attendanceMode ?? this.attendanceMode,
+    );
+  }
 }
 
 @HiveType(typeId: 13)
@@ -149,4 +177,24 @@ class AttendanceStudent {
     'UID': uid,
     'AttendanceMode': attendanceMode,
   };
+
+  AttendanceStudent copyWith({
+    int? id,
+    String? name,
+    String? rollNo,
+    String? admissionNumber,
+    bool? isPresent,
+    String? uid,
+    String? attendanceMode,
+  }) {
+    return AttendanceStudent(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      rollNo: rollNo ?? this.rollNo,
+      admissionNumber: admissionNumber ?? this.admissionNumber,
+      isPresent: isPresent ?? this.isPresent,
+      uid: uid ?? this.uid,
+      attendanceMode: attendanceMode ?? this.attendanceMode,
+    );
+  }
 }

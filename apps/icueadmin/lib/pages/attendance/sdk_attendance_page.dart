@@ -226,12 +226,11 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
   }
 
   Future<void> _applyAttendanceResult(AttendanceResult result) async {
-    if (mounted) {
-      AppUtils.showLoadingDialog(
-        context,
-        'Saving attendance... Please wait...',
-      );
-    }
+    if (!mounted) return;
+    AppUtils.showLoadingDialog(
+      context,
+      'Saving attendance... Please wait...',
+    );
 
     try {
       final attendanceProvider = context.read<AttendanceProvider>();
@@ -259,15 +258,14 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
         attendanceMode: 'FACIAL',
       );
 
-      if (mounted) {
-        AppUtils.hideLoadingDialog(context);
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const AttendanceConfirmationPage(),
-          ),
-        );
-      }
+      if (!mounted) return;
+      AppUtils.hideLoadingDialog(context);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const AttendanceConfirmationPage(),
+        ),
+      );
     } catch (e) {
       if (mounted) {
         AppUtils.hideLoadingDialog(context);

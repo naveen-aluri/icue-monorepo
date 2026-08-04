@@ -361,9 +361,10 @@ class _CreateAttendancePageState extends State<CreateAttendancePage> {
         final absentCount = markedStudents.where((e) => !e.isPresent).length;
         final markedCount = markedStudents.length;
 
+        final totalExpected =
+            studentProvider.metaData?.total ?? studentProvider.students.length;
         final attendanceComplete =
-            studentProvider.students.isNotEmpty &&
-            markedCount == (studentProvider.students.length);
+            totalExpected > 0 && markedCount >= totalExpected;
 
         return Scaffold(
           backgroundColor: Colors.white,
@@ -388,15 +389,52 @@ class _CreateAttendancePageState extends State<CreateAttendancePage> {
               ? const NoDataWidget(msg: 'No Students Found!')
               : Column(
                   children: [
-                    const SizedBox(height: 10),
-                    Text(
-                      'Total: $markedCount/${studentProvider.metaData?.total ?? '?'}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
+                    LinearProgressIndicator(
+                      value: totalExpected > 0
+                          ? (markedCount / totalExpected).clamp(0.0, 1.0)
+                          : 0.0,
+                      backgroundColor: Colors.grey.shade200,
+                      color: Theme.of(context).primaryColor,
+                      minHeight: 6,
+                    ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Marked: $markedCount of $totalExpected',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).primaryColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${totalExpected > 0 ? ((markedCount / totalExpected) * 100).toStringAsFixed(0) : 0}% Done',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     SizedBox(
                       height: MediaQuery.of(context).size.height * .40,
                       child: Padding(

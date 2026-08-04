@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
@@ -25,6 +26,7 @@ class _AttendanceConfirmationPageState
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     getIt<AnalyticsService>().logScreenView(
       screenName: 'attendance-confirmation-page',
     );
@@ -36,35 +38,30 @@ class _AttendanceConfirmationPageState
     super.dispose();
   }
 
-  Future<void> _showStatusChangeDialog(
+  void _toggleStudentStatus(
     BuildContext context,
     AttendanceStudent student,
     AttendanceProvider attendanceProvider,
-  ) async {
-    final targetStatus = student.isPresent ? 'Absent' : 'Present';
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Change Attendance Status?'),
-        content: Text(
-          'Are you sure you want to mark ${student.name} as $targetStatus?',
+  ) {
+    HapticFeedback.selectionClick();
+    attendanceProvider.toggleStudentAttendance(student);
+
+    final newStatus = student.isPresent ? 'Absent' : 'Present';
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 3),
+        content: Text('Marked ${student.name} as $newStatus'),
+        action: SnackBarAction(
+          label: 'UNDO',
+          textColor: Colors.amber,
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            attendanceProvider.toggleStudentAttendance(student);
+          },
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('CANCEL'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('CONFIRM'),
-          ),
-        ],
       ),
     );
-
-    if (confirmed == true && context.mounted) {
-      attendanceProvider.toggleStudentAttendance(student);
-    }
   }
 
   @override
@@ -80,20 +77,12 @@ class _AttendanceConfirmationPageState
         final presentStudents = students.where((e) => e.isPresent).toList();
         final absentStudents = students.where((e) => !e.isPresent).toList();
 
-        if (_tabController == null) {
-          _tabController = TabController(
-            length: 2,
-            vsync: this,
-            initialIndex: absentStudents.isEmpty ? 1 : 0,
-          );
-        } else {
-          if (absentStudents.isEmpty && _tabController!.index == 0) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && _tabController!.index == 0) {
-                _tabController!.animateTo(1);
-              }
-            });
-          }
+        if (absentStudents.isEmpty && _tabController != null && _tabController!.index == 0) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _tabController!.index == 0) {
+              _tabController!.animateTo(1);
+            }
+          });
         }
 
         return Scaffold(
@@ -192,7 +181,7 @@ class _AttendanceConfirmationPageState
             ),
             trailing: OutlinedButton.icon(
               onPressed: () {
-                _showStatusChangeDialog(context, item, attendanceProvider);
+                _toggleStudentStatus(context, item, attendanceProvider);
               },
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(0, 36),
@@ -227,7 +216,7 @@ class _AttendanceConfirmationPageState
               ),
             ),
             onTap: () {
-              _showStatusChangeDialog(context, item, attendanceProvider);
+              _toggleStudentStatus(context, item, attendanceProvider);
             },
           ),
         );

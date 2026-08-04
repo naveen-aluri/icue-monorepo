@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../models/student.dart';
@@ -15,17 +14,23 @@ class AttendanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final initial = candidate.name.isNotEmpty
+        ? candidate.name[0].toUpperCase()
+        : 'S';
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(20),
         color: color,
+        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: CupertinoColors.systemGrey.withValues(alpha: 0.2),
-            spreadRadius: 3,
-            blurRadius: 7,
-            offset: const Offset(0, 3),
+            color: Colors.black.withValues(alpha: 0.06),
+            spreadRadius: 2,
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -33,27 +38,57 @@ class AttendanceCard extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircleAvatar(
-            backgroundImage: AssetImage('assets/user.png'),
-            radius: 50,
+          CircleAvatar(
+            radius: 52,
+            backgroundColor: theme.primaryColor.withValues(alpha: 0.1),
+            child: Text(
+              initial,
+              style: TextStyle(
+                fontSize: 44,
+                fontWeight: FontWeight.bold,
+                color: theme.primaryColor,
+              ),
+            ),
           ),
-          const SizedBox(height: 30),
-          const Text('Role No', style: TextStyle(fontSize: 16)),
-          Text(
-            candidate.rollNo,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'Roll #${candidate.rollNo}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700,
+              ),
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             candidate.name,
             maxLines: 2,
+            textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 26,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.grey,
+              color: Color(0xFF1E293B),
             ),
           ),
+          if (candidate.admissionNumber.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Adm: ${candidate.admissionNumber}',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ],
       ),
     );

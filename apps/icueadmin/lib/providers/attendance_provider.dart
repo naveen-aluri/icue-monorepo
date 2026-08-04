@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:injectable/injectable.dart';
+import 'package:intl/intl.dart';
 
 import '../models/create_attendance.dart';
 import '../services/api_client.dart';
@@ -16,39 +17,49 @@ class AttendanceProvider extends ChangeNotifier {
   CreateAttendance? ongoingAttendance;
   String? ongoingAttendanceKey;
 
+  /// Standardized key format: yyyy-MM-dd-$classId-$section-$period
+  String generateAttendanceKey({
+    required int classId,
+    required String section,
+    String? period,
+  }) {
+    final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final activePeriod = (period == null || period.isEmpty) ? '1' : period;
+    return '$dateStr-$classId-$section-$activePeriod';
+  }
+
   Future<CreateAttendance?> getOngoingAttendance() async {
     try {
       final box = HiveService.createAttendanceBox;
       final ongoingAttendanceKeys = box.keys.toList();
       if (ongoingAttendanceKeys.isNotEmpty) {
-        ongoingAttendanceKey = ongoingAttendanceKeys.first;
+        ongoingAttendanceKey = ongoingAttendanceKeys.first.toString();
         ongoingAttendance = box.get(ongoingAttendanceKey);
-        return box.get(ongoingAttendanceKey);
+        return ongoingAttendance;
       } else {
         ongoingAttendanceKey = null;
         ongoingAttendance = null;
       }
       return null;
     } catch (error, stack) {
-      if (error.runtimeType.toString() != 'DioException') {
-        _apiClient.logCrash('getOngoingAttendance()', error, stack);
-      }
+      _apiClient.logCrash('getOngoingAttendance()', error, stack);
       return null;
     } finally {
       notifyListeners();
     }
   }
 
-  Future<void> deleteOngoingAttendance(BuildContext context) async {
+  Future<void> deleteOngoingAttendance() async {
     try {
-      await HiveService.createAttendanceBox.delete(ongoingAttendanceKey);
+      if (ongoingAttendanceKey != null) {
+        await HiveService.createAttendanceBox.delete(ongoingAttendanceKey);
+      }
       ongoingAttendanceKey = null;
       ongoingAttendance = null;
-      Navigator.of(context, rootNavigator: true).pop();
     } catch (error, stack) {
-      if (error.runtimeType.toString() != 'DioException') {
-        _apiClient.logCrash('deleteOngoingAttendance()', error, stack);
-      }
+      _apiClient.logCrash('deleteOngoingAttendance()', error, stack);
+    } finally {
+      notifyListeners();
     }
   }
 
@@ -61,12 +72,17 @@ class AttendanceProvider extends ChangeNotifier {
   }) async {
     try {
       final box = HiveService.createAttendanceBox;
-      final key = '${DateTime.now().formattedDate()}-$classId-$section';
+      final key = generateAttendanceKey(
+        classId: classId,
+        section: section,
+        period: period,
+      );
       if (ongoingAttendanceKey != key) {
         ongoingAttendanceKey = key;
         notifyListeners();
       }
 
+      final activePeriod = period.isEmpty ? '1' : period;
       final attendance = box.get(key);
       if (attendance == null) {
         await box.put(
@@ -81,38 +97,30 @@ class AttendanceProvider extends ChangeNotifier {
             attendanceTime: DateTime.now().formattedAttendanceTime(),
             month: DateTime.now().month,
             year: DateTime.now().year,
-            period: period,
+            period: activePeriod,
             attendanceMode: student.attendanceMode,
           ),
         );
       } else {
         final index = attendance.students.indexWhere((e) => e.id == student.id);
+        final updatedStudents = List<AttendanceStudent>.from(
+          attendance.students,
+        );
         if (index != -1) {
-          attendance.students[index] = student;
+          updatedStudents[index] = student;
         } else {
-          attendance.students.add(student);
+          updatedStudents.add(student);
         }
         await box.put(
           key,
-          CreateAttendance(
-            source: attendance.source,
-            students: attendance.students,
-            classId: attendance.classId,
-            section: attendance.section,
-            standard: attendance.standard,
-            attendanceDate: attendance.attendanceDate,
-            attendanceTime: attendance.attendanceTime,
-            month: attendance.month,
-            year: attendance.year,
-            period: attendance.period,
+          attendance.copyWith(
+            students: updatedStudents,
             attendanceMode: attendance.attendanceMode ?? student.attendanceMode,
           ),
         );
       }
     } catch (error, stack) {
-      if (error.runtimeType.toString() != 'DioException') {
-        _apiClient.logCrash('updateAttendance()', error, stack);
-      }
+      _apiClient.logCrash('updateAttendance()', error, stack);
     }
   }
 
@@ -126,11 +134,16 @@ class AttendanceProvider extends ChangeNotifier {
   }) async {
     try {
       final box = HiveService.createAttendanceBox;
-      final key = '${DateTime.now().formattedDate()}-$classId-$section';
+      final key = generateAttendanceKey(
+        classId: classId,
+        section: section,
+        period: period,
+      );
       if (ongoingAttendanceKey != key) {
         ongoingAttendanceKey = key;
       }
 
+      final activePeriod = period.isEmpty ? '1' : period;
       final attendance = box.get(key);
       if (attendance == null) {
         await box.put(
@@ -145,7 +158,7 @@ class AttendanceProvider extends ChangeNotifier {
             attendanceTime: DateTime.now().formattedAttendanceTime(),
             month: DateTime.now().month,
             year: DateTime.now().year,
-            period: period,
+            period: activePeriod,
             attendanceMode:
                 attendanceMode ??
                 (students.isNotEmpty ? students.first.attendanceMode : null),
@@ -159,25 +172,14 @@ class AttendanceProvider extends ChangeNotifier {
         final updatedStudents = studentMap.values.toList();
         await box.put(
           key,
-          CreateAttendance(
-            source: attendance.source,
+          attendance.copyWith(
             students: updatedStudents,
-            classId: attendance.classId,
-            section: attendance.section,
-            standard: attendance.standard,
-            attendanceDate: attendance.attendanceDate,
-            attendanceTime: attendance.attendanceTime,
-            month: attendance.month,
-            year: attendance.year,
-            period: attendance.period,
             attendanceMode: attendanceMode ?? attendance.attendanceMode,
           ),
         );
       }
     } catch (error, stack) {
-      if (error.runtimeType.toString() != 'DioException') {
-        _apiClient.logCrash('updateAttendanceBulk()', error, stack);
-      }
+      _apiClient.logCrash('updateAttendanceBulk()', error, stack);
     } finally {
       notifyListeners();
     }
@@ -228,10 +230,12 @@ class AttendanceProvider extends ChangeNotifier {
         }
       }
 
-      if (hasError && errorMessage != null) {
-        AppUtils.showErrorMessage(context, errorMessage);
-      } else if (successMessage != null) {
-        AppUtils.showSucessMessage(context, successMessage);
+      if (context.mounted) {
+        if (hasError && errorMessage != null) {
+          AppUtils.showErrorMessage(context, errorMessage);
+        } else if (successMessage != null) {
+          AppUtils.showSucessMessage(context, successMessage);
+        }
       }
 
       if (isSuccess && !hasError) {
@@ -242,11 +246,11 @@ class AttendanceProvider extends ChangeNotifier {
         }
       }
     } catch (error, stack) {
-      if (error.runtimeType.toString() != 'DioException') {
-        _apiClient.logCrash('/createAttendance', error, stack);
-      }
+      _apiClient.logCrash('/createAttendance', error, stack);
     } finally {
-      AppUtils.hideLoadingDialog(context);
+      if (context.mounted) {
+        AppUtils.hideLoadingDialog(context);
+      }
     }
   }
 
@@ -264,7 +268,7 @@ class AttendanceProvider extends ChangeNotifier {
           'ClassId': classId,
           'Section': section,
           'AttendanceDate': date,
-          'Period': period,
+          'Period': period.isEmpty ? '1' : period,
           'Source': 'adminapp',
         },
       );
@@ -275,30 +279,34 @@ class AttendanceProvider extends ChangeNotifier {
           if (data.isEmpty) {
             return false;
           } else {
-            AppUtils.showErrorMessage(
-              context,
-              'Attendance has already been submitted for this section.',
-            );
+            if (context.mounted) {
+              AppUtils.showErrorMessage(
+                context,
+                'Attendance has already been submitted for this section.',
+              );
+            }
             return true;
           }
         } else if (data is Map && data['err'] == true) {
-          AppUtils.showErrorMessage(
-            context,
-            data['message'] ?? 'Failed to check attendance status.',
-          );
+          if (context.mounted) {
+            AppUtils.showErrorMessage(
+              context,
+              data['message'] ?? 'Failed to check attendance status.',
+            );
+          }
           return true;
         }
       }
 
-      AppUtils.showErrorMessage(
-        context,
-        'Failed to check attendance status. Please try again.',
-      );
+      if (context.mounted) {
+        AppUtils.showErrorMessage(
+          context,
+          'Failed to check attendance status. Please try again.',
+        );
+      }
       return true;
     } catch (error, stack) {
-      if (error.runtimeType.toString() != 'DioException') {
-        _apiClient.logCrash('/getClassAttendancesByDate check', error, stack);
-      }
+      _apiClient.logCrash('/getClassAttendancesByDate check', error, stack);
       return true;
     }
   }
@@ -317,13 +325,15 @@ class AttendanceProvider extends ChangeNotifier {
         data: {'ClassId': classId, 'Section': section, 'AttendanceDate': date},
       );
 
-      AppUtils.showSucessMessage(context, 'Attendance updated successfully!');
-    } catch (error, stack) {
-      if (error.runtimeType.toString() != 'DioException') {
-        _apiClient.logCrash('/getClassAttendancesByDate', error, stack);
+      if (context.mounted) {
+        AppUtils.showSucessMessage(context, 'Attendance updated successfully!');
       }
+    } catch (error, stack) {
+      _apiClient.logCrash('/getClassAttendancesByDate', error, stack);
     } finally {
-      AppUtils.hideLoadingDialog(context);
+      if (context.mounted) {
+        AppUtils.hideLoadingDialog(context);
+      }
     }
   }
 
@@ -336,22 +346,20 @@ class AttendanceProvider extends ChangeNotifier {
 
       final index = attendance.students.indexWhere((e) => e.id == student.id);
       if (index != -1) {
-        attendance.students[index] = AttendanceStudent(
-          id: student.id,
-          name: student.name,
-          rollNo: student.rollNo,
-          admissionNumber: student.admissionNumber,
-          isPresent: !student.isPresent,
-          uid: student.uid,
-          attendanceMode: student.attendanceMode,
+        final updatedStudents = List<AttendanceStudent>.from(
+          attendance.students,
         );
-        await box.put(ongoingAttendanceKey!, attendance);
+        updatedStudents[index] = student.copyWith(
+          isPresent: !student.isPresent,
+        );
+        await box.put(
+          ongoingAttendanceKey!,
+          attendance.copyWith(students: updatedStudents),
+        );
         notifyListeners();
       }
     } catch (error, stack) {
-      if (error.runtimeType.toString() != 'DioException') {
-        _apiClient.logCrash('toggleStudentAttendance()', error, stack);
-      }
+      _apiClient.logCrash('toggleStudentAttendance()', error, stack);
     }
   }
 }

@@ -30,15 +30,24 @@ class _ResumeAttendanceDialogState extends State<ResumeAttendanceDialog> {
         actions: [
           ElevatedButton(
             onPressed: () {
+              if (ongoingAttendance == null) return;
+              final targetClass = provider.assignedEntityClasses
+                  .where((e) => e.classId == ongoingAttendance.classId)
+                  .firstOrNull;
+
+              if (targetClass == null) {
+                attendanceProvider.deleteOngoingAttendance();
+                Navigator.of(context, rootNavigator: true).pop();
+                return;
+              }
+
               Navigator.of(context, rootNavigator: true).pop();
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => CreateAttendancePage(
-                    standard: provider.assignedEntityClasses.firstWhere(
-                      (e) => e.classId == ongoingAttendance!.classId,
-                    ),
-                    section: ongoingAttendance!.section,
+                    standard: targetClass,
+                    section: ongoingAttendance.section,
                   ),
                 ),
               );
@@ -53,8 +62,11 @@ class _ResumeAttendanceDialogState extends State<ResumeAttendanceDialog> {
                 side: BorderSide(color: Colors.red),
               ),
             ),
-            onPressed: () {
-              attendanceProvider.deleteOngoingAttendance(context);
+            onPressed: () async {
+              await attendanceProvider.deleteOngoingAttendance();
+              if (context.mounted) {
+                Navigator.of(context, rootNavigator: true).pop();
+              }
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
