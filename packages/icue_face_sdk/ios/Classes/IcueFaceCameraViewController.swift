@@ -20,6 +20,10 @@ internal class IcueFaceCameraViewController: UIViewController, AVCaptureVideoDat
     var maxFaces: Int = 5
     var threshold: Float = 0.68
     var autoFinish: Bool = true
+    var showMatchingPercentage: Bool = true
+    var showDetectedLabel: Bool = true
+    var showUnrecognizedLabel: Bool = true
+    var unrecognizedLabel: String = "UNREGISTERED STUDENT"
 
     var onCaptured: (([Float]?) -> Void)?
     var onTrackingFrame: (([String: Any]) -> Void)?

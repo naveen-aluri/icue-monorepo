@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum AttendanceModeOption { manual, sdk }
+enum AttendanceModeOption { manual, sdkLive, sdkPhoto }
 
 class AttendanceModeDialog extends StatelessWidget {
   const AttendanceModeDialog({super.key});
@@ -62,14 +62,26 @@ class AttendanceModeDialog extends StatelessWidget {
               const SizedBox(height: 12),
               _buildOptionCard(
                 context: context,
-                icon: Icons.face_retouching_natural_rounded,
-                iconColor: Colors.deepPurple,
-                title: 'Face Recognition',
+                icon: Icons.videocam_rounded,
+                iconColor: const Color(0xFF6366F1),
+                title: 'Live Camera Scan',
                 subtitle:
-                    'Mark attendance automatically using camera face recognition',
-                option: AttendanceModeOption.sdk,
+                    'Continuous live video sweep across classroom for real-time face matching',
+                option: AttendanceModeOption.sdkLive,
                 isBadge: true,
                 badgeText: 'AUTOMATED',
+              ),
+              const SizedBox(height: 12),
+              _buildOptionCard(
+                context: context,
+                icon: Icons.groups_rounded,
+                iconColor: const Color(0xFF0EA5E9),
+                title: 'Multi-Photo Group Scan',
+                subtitle:
+                    'Capture small group snapshots to cover all students with deduplicated matching',
+                option: AttendanceModeOption.sdkPhoto,
+                isBadge: true,
+                badgeText: 'GROUP SCAN',
               ),
             ],
           ),

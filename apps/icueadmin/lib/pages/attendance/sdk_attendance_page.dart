@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:icue_face_sdk/icue_face_sdk.dart';
 import 'package:provider/provider.dart';
 
+import '../../dialogs/attendance_mode_dialog.dart';
 import '../../models/assigned_entities.dart';
 import '../../models/create_attendance.dart';
 import '../../models/student.dart';
@@ -17,10 +18,12 @@ class SdkAttendancePage extends StatefulWidget {
     super.key,
     required this.standard,
     required this.section,
+    required this.initialMode,
   });
 
   final AssignedEntityClass standard;
   final String section;
+  final AttendanceModeOption initialMode;
 
   @override
   State<SdkAttendancePage> createState() => _SdkAttendancePageState();
@@ -72,10 +75,12 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
       }
 
       if (!mounted) return;
-      setState(() {
-        _loadingStudents = false;
-        _initializing = false;
-      });
+
+      if (widget.initialMode == AttendanceModeOption.sdkLive) {
+        await _startLiveAttendance(autoLaunch: true);
+      } else if (widget.initialMode == AttendanceModeOption.sdkPhoto) {
+        await _startMultiPhotoAttendance(autoLaunch: true);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -93,33 +98,49 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
       final embedding = studentsProvider.studentEmbeddings[student.id];
       if (embedding != null && embedding.length == faceEmbeddingSize) {
         roster.add(
-          FaceProfile(
-            personId: student.id.toString(),
-            embedding: embedding,
-          ),
+          FaceProfile(personId: student.id.toString(), embedding: embedding),
         );
       }
     }
     return roster;
   }
 
-  Future<void> _startLiveAttendance() async {
+  Future<void> _startLiveAttendance({bool autoLaunch = false}) async {
     if (_cameraBusy || _studentList.isEmpty) return;
     final roster = _buildRoster();
     if (roster.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No registered face profiles found for this class. Please register face profiles first.',
+      if (!autoLaunch && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No registered face profiles found for this class. Please register face profiles first.',
+            ),
           ),
-        ),
-      );
+        );
+      }
+      setState(() {
+        _initializing = false;
+        _loadingStudents = false;
+      });
       return;
     }
-    setState(() => _cameraBusy = true);
+    setState(() {
+      _cameraBusy = true;
+      if (!autoLaunch) {
+        _initializing = true;
+      }
+    });
 
     try {
-      final result = await _sdk.startLiveAttendance(roster: roster);
+      final result = await _sdk.startLiveAttendance(
+        roster: roster,
+        config: const AttendanceConfig(
+          showMatchingPercentage: false,
+          showDetectedLabel: false,
+          showUnrecognizedLabel: false,
+          // autoFinishWhenComplete: true,
+        ),
+      );
       if (!mounted) return;
 
       if (result != null) {
@@ -133,27 +154,54 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _cameraBusy = false);
+      if (mounted) {
+        setState(() {
+          _cameraBusy = false;
+          _initializing = false;
+          _loadingStudents = false;
+        });
+      }
     }
   }
 
-  Future<void> _startMultiPhotoAttendance() async {
+  Future<void> _startMultiPhotoAttendance({bool autoLaunch = false}) async {
     if (_cameraBusy || _studentList.isEmpty) return;
     final roster = _buildRoster();
     if (roster.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No registered face profiles found for this class. Please register face profiles first.',
+      if (!autoLaunch && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No registered face profiles found for this class. Please register face profiles first.',
+            ),
           ),
-        ),
-      );
+        );
+      }
+      setState(() {
+        _initializing = false;
+        _loadingStudents = false;
+      });
       return;
     }
-    setState(() => _cameraBusy = true);
+    setState(() {
+      _cameraBusy = true;
+      if (!autoLaunch) {
+        _initializing = true;
+      }
+    });
 
     try {
-      final result = await _sdk.startMultiPhotoAttendance(roster: roster);
+      final result = await _sdk.startMultiPhotoAttendance(
+        roster: roster,
+        config: const AttendanceConfig(
+          // Customize your configurations:
+          // showMatchingPercentage: false,
+          // showDetectedLabel: false,
+          // showUnrecognizedLabel: false,
+          unrecognizedLabel:
+              'UNKNOWN FACE', // default is 'UNREGISTERED STUDENT'
+        ),
+      );
       if (!mounted) return;
 
       if (result != null) {
@@ -167,7 +215,13 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _cameraBusy = false);
+      if (mounted) {
+        setState(() {
+          _cameraBusy = false;
+          _initializing = false;
+          _loadingStudents = false;
+        });
+      }
     }
   }
 
@@ -249,6 +303,30 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
           : _errorMessage != null
           ? _buildErrorState()
           : _buildMainContent(theme, studentsProvider),
+      floatingActionButton:
+          _initializing || _loadingStudents || _errorMessage != null
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: (_cameraBusy || _studentList.isEmpty)
+                  ? null
+                  : () {
+                      if (widget.initialMode == AttendanceModeOption.sdkLive) {
+                        _startLiveAttendance();
+                      } else {
+                        _startMultiPhotoAttendance();
+                      }
+                    },
+              label: Text(
+                widget.initialMode == AttendanceModeOption.sdkLive
+                    ? 'Start Live Scan'
+                    : 'Start Group Scan',
+              ),
+              icon: Icon(
+                widget.initialMode == AttendanceModeOption.sdkLive
+                    ? Icons.videocam_rounded
+                    : Icons.groups_rounded,
+              ),
+            ),
     );
   }
 
@@ -344,171 +422,8 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
           _buildResultBanner(theme),
           const SizedBox(height: 20),
         ],
-        Row(
-          children: [
-            Icon(
-              Icons.center_focus_strong_rounded,
-              color: theme.primaryColor,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Select Scanning Mode',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade800,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _buildModeCard(
-          theme: theme,
-          title: 'Live Camera Scan',
-          subtitle:
-              'Continuous live video sweep across classroom for real-time face matching.',
-          badgeText: 'RECOMMENDED',
-          badgeColor: const Color(0xFF6366F1),
-          icon: Icons.videocam_rounded,
-          gradientColors: [const Color(0xFF4F46E5), const Color(0xFF6366F1)],
-          onTap: _startLiveAttendance,
-        ),
-        const SizedBox(height: 14),
-        _buildModeCard(
-          theme: theme,
-          title: 'Multi-Photo Group Scan',
-          subtitle:
-              'Capture small group snapshots to cover all students with deduplicated matching.',
-          badgeText: 'GROUP SCAN',
-          badgeColor: const Color(0xFF0EA5E9),
-          icon: Icons.groups_rounded,
-          gradientColors: [const Color(0xFF0284C7), const Color(0xFF38BDF8)],
-          onTap: _startMultiPhotoAttendance,
-        ),
-        const SizedBox(height: 28),
         _buildRosterSection(theme, studentsProvider),
       ],
-    );
-  }
-
-  Widget _buildModeCard({
-    required ThemeData theme,
-    required String title,
-    required String subtitle,
-    required String badgeText,
-    required Color badgeColor,
-    required IconData icon,
-    required List<Color> gradientColors,
-    required VoidCallback onTap,
-  }) {
-    final isDisabled = _cameraBusy || _studentList.isEmpty;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: isDisabled ? null : onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: gradientColors,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: gradientColors.first.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Icon(icon, color: Colors.white, size: 24),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (badgeText.isNotEmpty) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: badgeColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          badgeText,
-                          style: TextStyle(
-                            color: badgeColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.arrow_forward_rounded,
-                  color: theme.primaryColor,
-                  size: 18,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -613,7 +528,10 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
     );
   }
 
-  Widget _buildRosterSection(ThemeData theme, StudentsProvider studentsProvider) {
+  Widget _buildRosterSection(
+    ThemeData theme,
+    StudentsProvider studentsProvider,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -662,7 +580,8 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final student = _studentList[index];
-              final hasEmbedding = studentsProvider.studentEmbeddings.containsKey(student.id);
+              final hasEmbedding = studentsProvider.studentEmbeddings
+                  .containsKey(student.id);
               return Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,

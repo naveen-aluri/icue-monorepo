@@ -120,6 +120,10 @@ abstract class IcueFaceSdkPlatform extends PlatformInterface {
     required CameraLens lens,
     required int maxFaces,
     required double threshold,
+    required bool showMatchingPercentage,
+    required bool showDetectedLabel,
+    required bool showUnrecognizedLabel,
+    required String unrecognizedLabel,
   }) =>
       throw UnimplementedError('startFaceTracking() has not been implemented.');
 

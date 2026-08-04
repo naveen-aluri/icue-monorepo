@@ -124,6 +124,10 @@ void main() {
       lens: CameraLens.front,
       maxFaces: defaultMaximumFaces,
       threshold: defaultFaceMatchThreshold,
+      showMatchingPercentage: true,
+      showDetectedLabel: true,
+      showUnrecognizedLabel: true,
+      unrecognizedLabel: 'UNREGISTERED STUDENT',
     );
     await platform.stopFaceTracking();
 
@@ -137,6 +141,10 @@ void main() {
       'mode': 'MULTI',
       'maxFaces': defaultMaximumFaces,
       'threshold': defaultFaceMatchThreshold,
+      'showMatchingPercentage': true,
+      'showDetectedLabel': true,
+      'showUnrecognizedLabel': true,
+      'unrecognizedLabel': 'UNREGISTERED STUDENT',
     });
     expect(calls[2].method, 'stopFaceTracking');
   });

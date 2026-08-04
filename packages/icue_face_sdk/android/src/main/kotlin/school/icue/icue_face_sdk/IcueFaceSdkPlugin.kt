@@ -315,6 +315,10 @@ class IcueFaceSdkPlugin :
             ?: return result.error("NOT_INITIALIZED", "SDK is not initialized", null)
         val profiles = call.profiles()
         val options = call.recognitionOptions(RecognitionMode.MULTI)
+        val showMatchingPercentage = call.argument<Boolean>("showMatchingPercentage") ?: true
+        val showDetectedLabel = call.argument<Boolean>("showDetectedLabel") ?: true
+        val showUnrecognizedLabel = call.argument<Boolean>("showUnrecognizedLabel") ?: true
+        val unrecognizedLabel = call.argument<String>("unrecognizedLabel") ?: "UNREGISTERED STUDENT"
         try {
             IcueFaceCamera.startTracking(
                 hostActivity,
@@ -323,6 +327,10 @@ class IcueFaceSdkPlugin :
                 call.cameraLens(),
                 options.maxFaces,
                 options.threshold,
+                showMatchingPercentage,
+                showDetectedLabel,
+                showUnrecognizedLabel,
+                unrecognizedLabel,
                 object : IcueFaceCamera.TrackingListener {
                     override fun onFaces(result: IcueFaceTrackingResult) {
                         trackingEventSink?.success(result.toTrackingChannelValue())
@@ -356,6 +364,10 @@ class IcueFaceSdkPlugin :
         val roster = call.roster()
         val options = call.recognitionOptions(RecognitionMode.MULTI)
         val autoFinish = call.argument<Boolean>("autoFinish") ?: false
+        val showMatchingPercentage = call.argument<Boolean>("showMatchingPercentage") ?: true
+        val showDetectedLabel = call.argument<Boolean>("showDetectedLabel") ?: true
+        val showUnrecognizedLabel = call.argument<Boolean>("showUnrecognizedLabel") ?: true
+        val unrecognizedLabel = call.argument<String>("unrecognizedLabel") ?: "UNREGISTERED STUDENT"
         try {
             IcueFaceCamera.openLiveAttendance(
                 hostActivity,
@@ -365,6 +377,10 @@ class IcueFaceSdkPlugin :
                 options.maxFaces,
                 options.threshold,
                 autoFinish,
+                showMatchingPercentage,
+                showDetectedLabel,
+                showUnrecognizedLabel,
+                unrecognizedLabel,
                 object : IcueFaceCamera.AttendanceCallback {
                     override fun onCompleted(resultMap: Map<String, Any?>) {
                         result.success(resultMap)
@@ -392,6 +408,10 @@ class IcueFaceSdkPlugin :
         val roster = call.roster()
         val options = call.recognitionOptions(RecognitionMode.MULTI)
         val autoFinish = call.argument<Boolean>("autoFinish") ?: false
+        val showMatchingPercentage = call.argument<Boolean>("showMatchingPercentage") ?: true
+        val showDetectedLabel = call.argument<Boolean>("showDetectedLabel") ?: true
+        val showUnrecognizedLabel = call.argument<Boolean>("showUnrecognizedLabel") ?: true
+        val unrecognizedLabel = call.argument<String>("unrecognizedLabel") ?: "UNREGISTERED STUDENT"
         try {
             IcueFaceCamera.openMultiPhotoAttendance(
                 hostActivity,
@@ -401,6 +421,10 @@ class IcueFaceSdkPlugin :
                 options.maxFaces,
                 options.threshold,
                 autoFinish,
+                showMatchingPercentage,
+                showDetectedLabel,
+                showUnrecognizedLabel,
+                unrecognizedLabel,
                 object : IcueFaceCamera.AttendanceCallback {
                     override fun onCompleted(resultMap: Map<String, Any?>) {
                         result.success(resultMap)

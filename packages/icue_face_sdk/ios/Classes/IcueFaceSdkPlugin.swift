@@ -392,6 +392,10 @@ public class IcueFaceSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         let lens = (args["lens"] as? String) ?? "front"
         let maxFaces = (args["maxFaces"] as? Int) ?? 5
         let threshold = Float((args["threshold"] as? Double) ?? 0.68)
+        let showMatchingPercentage = (args["showMatchingPercentage"] as? Bool) ?? true
+        let showDetectedLabel = (args["showDetectedLabel"] as? Bool) ?? true
+        let showUnrecognizedLabel = (args["showUnrecognizedLabel"] as? Bool) ?? true
+        let unrecognizedLabel = (args["unrecognizedLabel"] as? String) ?? "UNREGISTERED STUDENT"
 
         DispatchQueue.main.async {
             guard let rootVc = self.getRootViewController() else {
@@ -405,6 +409,10 @@ public class IcueFaceSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             cameraVc.profiles = profiles
             cameraVc.maxFaces = maxFaces
             cameraVc.threshold = threshold
+            cameraVc.showMatchingPercentage = showMatchingPercentage
+            cameraVc.showDetectedLabel = showDetectedLabel
+            cameraVc.showUnrecognizedLabel = showUnrecognizedLabel
+            cameraVc.unrecognizedLabel = unrecognizedLabel
             cameraVc.modalPresentationStyle = .fullScreen
 
             cameraVc.onTrackingFrame = { frameMap in
@@ -437,6 +445,10 @@ public class IcueFaceSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         let maxFaces = (args["maxFaces"] as? Int) ?? 5
         let lens = (args["lens"] as? String) ?? "front"
         let autoFinish = (args["autoFinish"] as? Bool) ?? true
+        let showMatchingPercentage = (args["showMatchingPercentage"] as? Bool) ?? true
+        let showDetectedLabel = (args["showDetectedLabel"] as? Bool) ?? true
+        let showUnrecognizedLabel = (args["showUnrecognizedLabel"] as? Bool) ?? true
+        let unrecognizedLabel = (args["unrecognizedLabel"] as? String) ?? "UNREGISTERED STUDENT"
 
         DispatchQueue.main.async {
             guard let rootVc = self.getRootViewController() else {
@@ -451,6 +463,10 @@ public class IcueFaceSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             cameraVc.threshold = threshold
             cameraVc.maxFaces = maxFaces
             cameraVc.autoFinish = autoFinish
+            cameraVc.showMatchingPercentage = showMatchingPercentage
+            cameraVc.showDetectedLabel = showDetectedLabel
+            cameraVc.showUnrecognizedLabel = showUnrecognizedLabel
+            cameraVc.unrecognizedLabel = unrecognizedLabel
             cameraVc.modalPresentationStyle = .fullScreen
 
             cameraVc.onAttendanceComplete = { attendanceResult in
@@ -471,6 +487,10 @@ public class IcueFaceSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         let maxFaces = (args["maxFaces"] as? Int) ?? 5
         let lens = (args["lens"] as? String) ?? "front"
         let autoFinish = (args["autoFinish"] as? Bool) ?? true
+        let showMatchingPercentage = (args["showMatchingPercentage"] as? Bool) ?? true
+        let showDetectedLabel = (args["showDetectedLabel"] as? Bool) ?? true
+        let showUnrecognizedLabel = (args["showUnrecognizedLabel"] as? Bool) ?? true
+        let unrecognizedLabel = (args["unrecognizedLabel"] as? String) ?? "UNREGISTERED STUDENT"
 
         DispatchQueue.main.async {
             guard let rootVc = self.getRootViewController() else {
@@ -485,6 +505,10 @@ public class IcueFaceSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             cameraVc.threshold = threshold
             cameraVc.maxFaces = maxFaces
             cameraVc.autoFinish = autoFinish
+            cameraVc.showMatchingPercentage = showMatchingPercentage
+            cameraVc.showDetectedLabel = showDetectedLabel
+            cameraVc.showUnrecognizedLabel = showUnrecognizedLabel
+            cameraVc.unrecognizedLabel = unrecognizedLabel
             cameraVc.modalPresentationStyle = .fullScreen
 
             cameraVc.onAttendanceComplete = { attendanceResult in

@@ -574,12 +574,17 @@ class IcueFaceCameraActivity : ComponentActivity() {
                     width,
                     height,
                     recognitions.map { recognition ->
-                        if (recognition.matched) {
-                            "${recognition.personId} • ${(recognition.score * 100).toInt()}%"
-                        } else {
-                            "UNREGISTERED STUDENT"
-                        }
+                        formatFaceLabel(
+                            matched = recognition.matched,
+                            personId = recognition.personId,
+                            score = recognition.score,
+                            showDetectedLabel = activeSession.showDetectedLabel,
+                            showMatchingPercentage = activeSession.showMatchingPercentage,
+                            showUnrecognizedLabel = activeSession.showUnrecognizedLabel,
+                            unrecognizedLabel = activeSession.unrecognizedLabel
+                        )
                     },
+                    recognitions.map { it.matched }
                 )
                 statusPill.text = when {
                     activeSession.profiles.isEmpty() -> "ATTENDANCE • TRACKING ${faces.size} STUDENT(S)"
@@ -645,12 +650,17 @@ class IcueFaceCameraActivity : ComponentActivity() {
                     width,
                     height,
                     recognitions.map { recognition ->
-                        if (recognition.matched && recognition.personId != null) {
-                            "${recognition.personId} • ${(recognition.score * 100).toInt()}%"
-                        } else {
-                            "UNREGISTERED STUDENT"
-                        }
+                        formatFaceLabel(
+                            matched = recognition.matched && recognition.personId != null,
+                            personId = recognition.personId,
+                            score = recognition.score,
+                            showDetectedLabel = activeSession.showDetectedLabel,
+                            showMatchingPercentage = activeSession.showMatchingPercentage,
+                            showUnrecognizedLabel = activeSession.showUnrecognizedLabel,
+                            unrecognizedLabel = activeSession.unrecognizedLabel
+                        )
                     },
+                    recognitions.map { it.matched && it.personId != null }
                 )
                 statusPill.text = "LIVE ATTENDANCE • $presentCount/$totalRoster PRESENT ($percent%)"
                 statusPill.background = roundedPill(0xCC0B1422.toInt(), 0x6600E676.toInt())
@@ -730,12 +740,17 @@ class IcueFaceCameraActivity : ComponentActivity() {
                     width,
                     height,
                     recognitions.map { recognition ->
-                        if (recognition.matched && recognition.personId != null) {
-                            "${recognition.personId} • ${(recognition.score * 100).toInt()}%"
-                        } else {
-                            "UNREGISTERED STUDENT"
-                        }
+                        formatFaceLabel(
+                            matched = recognition.matched && recognition.personId != null,
+                            personId = recognition.personId,
+                            score = recognition.score,
+                            showDetectedLabel = activeSession.showDetectedLabel,
+                            showMatchingPercentage = activeSession.showMatchingPercentage,
+                            showUnrecognizedLabel = activeSession.showUnrecognizedLabel,
+                            unrecognizedLabel = activeSession.unrecognizedLabel
+                        )
                     },
+                    recognitions.map { it.matched && it.personId != null }
                 )
                 statusPill.text = "MULTI-PHOTO • ${photosCapturedCount} PHOTO(S) • $presentCount/$totalRoster PRESENT"
                 statusPill.background = roundedPill(0xCC0B1422.toInt(), 0x6600E676.toInt())
@@ -804,6 +819,29 @@ class IcueFaceCameraActivity : ComponentActivity() {
         runOnUiThread {
             statusPill.text = "Attendance session complete"
             finish()
+        }
+    }
+
+    private fun formatFaceLabel(
+        matched: Boolean,
+        personId: String?,
+        score: Float,
+        showDetectedLabel: Boolean,
+        showMatchingPercentage: Boolean,
+        showUnrecognizedLabel: Boolean,
+        unrecognizedLabel: String
+    ): String {
+        return if (matched) {
+            val parts = mutableListOf<String>()
+            if (showDetectedLabel && personId != null) {
+                parts.add(personId)
+            }
+            if (showMatchingPercentage) {
+                parts.add("${(score * 100).toInt()}%")
+            }
+            parts.joinToString(" • ")
+        } else {
+            if (showUnrecognizedLabel) unrecognizedLabel else ""
         }
     }
 
@@ -1037,6 +1075,7 @@ private class FaceOverlayView(activity: Activity) : View(activity) {
 
     private var faces: List<IcueBoundingBox> = emptyList()
     private var labels: List<String?> = emptyList()
+    private var isMatchedList: List<Boolean> = emptyList()
     private var sourceWidth = 1
     private var sourceHeight = 1
 
@@ -1045,9 +1084,11 @@ private class FaceOverlayView(activity: Activity) : View(activity) {
         width: Int,
         height: Int,
         newLabels: List<String?> = emptyList(),
+        newMatchedList: List<Boolean> = emptyList(),
     ) {
         faces = newFaces
         labels = newLabels
+        isMatchedList = newMatchedList
         sourceWidth = width.coerceAtLeast(1)
         sourceHeight = height.coerceAtLeast(1)
         invalidate()
@@ -1076,7 +1117,7 @@ private class FaceOverlayView(activity: Activity) : View(activity) {
                     offsetY + face.bottom * scale,
                 )
                 val label = labels.getOrNull(index)
-                val isMatched = label != null && label != "UNREGISTERED STUDENT" && label.isNotBlank()
+                val isMatched = isMatchedList.getOrNull(index) ?: (label != null && label != "UNREGISTERED STUDENT" && label.isNotBlank())
                 val mainColor = if (isMatched) 0xFF00E676.toInt() else 0xFF00E5FF.toInt()
 
                 bracketPaint.color = mainColor

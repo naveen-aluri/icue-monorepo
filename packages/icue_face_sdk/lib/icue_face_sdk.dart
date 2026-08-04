@@ -173,11 +173,19 @@ class IcueFaceSdk {
     CameraLens lens = CameraLens.front,
     int maxFaces = defaultMaximumFaces,
     double threshold = defaultFaceMatchThreshold,
+    bool showMatchingPercentage = true,
+    bool showDetectedLabel = true,
+    bool showUnrecognizedLabel = true,
+    String unrecognizedLabel = 'UNREGISTERED STUDENT',
   }) => _platform.startFaceTracking(
     profiles: profiles,
     lens: lens,
     maxFaces: maxFaces,
     threshold: threshold,
+    showMatchingPercentage: showMatchingPercentage,
+    showDetectedLabel: showDetectedLabel,
+    showUnrecognizedLabel: showUnrecognizedLabel,
+    unrecognizedLabel: unrecognizedLabel,
   );
 
   /// Closes the SDK-owned live tracking camera, if it is open.

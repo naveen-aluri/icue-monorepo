@@ -225,12 +225,20 @@ class MethodChannelIcueFaceSdk extends IcueFaceSdkPlatform {
     required CameraLens lens,
     required int maxFaces,
     required double threshold,
+    required bool showMatchingPercentage,
+    required bool showDetectedLabel,
+    required bool showUnrecognizedLabel,
+    required String unrecognizedLabel,
   }) => _invoke<void>('startFaceTracking', <String, Object>{
     'profiles': profiles.map((profile) => profile.toMap()).toList(),
     'lens': lens.nativeValue,
     'mode': RecognitionMode.multi.nativeValue,
     'maxFaces': maxFaces,
     'threshold': threshold,
+    'showMatchingPercentage': showMatchingPercentage,
+    'showDetectedLabel': showDetectedLabel,
+    'showUnrecognizedLabel': showUnrecognizedLabel,
+    'unrecognizedLabel': unrecognizedLabel,
   });
 
   @override
@@ -249,6 +257,10 @@ class MethodChannelIcueFaceSdk extends IcueFaceSdkPlatform {
         'maxFaces': config.maxFacesPerFrame,
         'lens': config.lens.nativeValue,
         'autoFinish': config.autoFinishWhenComplete,
+        'showMatchingPercentage': config.showMatchingPercentage,
+        'showDetectedLabel': config.showDetectedLabel,
+        'showUnrecognizedLabel': config.showUnrecognizedLabel,
+        'unrecognizedLabel': config.unrecognizedLabel,
       },
     );
     return result == null ? null : AttendanceResult.fromMap(result);
@@ -267,6 +279,10 @@ class MethodChannelIcueFaceSdk extends IcueFaceSdkPlatform {
         'maxFaces': config.maxFacesPerFrame,
         'lens': config.lens.nativeValue,
         'autoFinish': config.autoFinishWhenComplete,
+        'showMatchingPercentage': config.showMatchingPercentage,
+        'showDetectedLabel': config.showDetectedLabel,
+        'showUnrecognizedLabel': config.showUnrecognizedLabel,
+        'unrecognizedLabel': config.unrecognizedLabel,
       },
     );
     return result == null ? null : AttendanceResult.fromMap(result);

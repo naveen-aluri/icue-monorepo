@@ -47,6 +47,10 @@ class FakeIcueFaceSdkPlatform extends IcueFaceSdkPlatform {
     required CameraLens lens,
     required int maxFaces,
     required double threshold,
+    required bool showMatchingPercentage,
+    required bool showDetectedLabel,
+    required bool showUnrecognizedLabel,
+    required String unrecognizedLabel,
   }) async {
     trackingLens = lens;
   }

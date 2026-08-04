@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../dialogs/attendance_mode_dialog.dart';
 import '../../models/assigned_entities.dart';
+import '../../providers/attendance_provider.dart';
 import '../../services/analytics_service.dart';
 import '../../services/injectable.dart';
+import '../../utils/app_utils.dart';
 import '../../widgets/no_data_widget.dart';
 import 'create_attendance_page.dart';
 import 'sdk_attendance_page.dart';
@@ -54,13 +57,14 @@ class _SectionsPageState extends State<SectionsPage> {
                         ),
                       ),
                     );
-                  } else if (mode == AttendanceModeOption.sdk) {
+                  } else {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => SdkAttendancePage(
                           standard: widget.standard,
                           section: section!,
+                          initialMode: mode,
                         ),
                       ),
                     );
@@ -84,8 +88,49 @@ class _SectionsPageState extends State<SectionsPage> {
           ? const Center(child: NoDataWidget())
           : RadioGroup(
               groupValue: section,
-              onChanged: (val) {
-                setState(() => section = val);
+              onChanged: (val) async {
+                if (val == null || !mounted) return;
+
+                AppUtils.showLoadingDialog(
+                  context,
+                  'Checking attendance...Please wait...',
+                );
+
+                try {
+                  final attendanceProvider = context.read<AttendanceProvider>();
+                  final date = DateTime.now().formattedGatePassDate() ?? '';
+                  final exists = await attendanceProvider.checkAttendanceExists(
+                    context: context,
+                    classId: widget.standard.classId,
+                    section: val,
+                    date: date,
+                    period: '1',
+                  );
+
+                  if (!mounted) return;
+                  AppUtils.hideLoadingDialog(context);
+
+                  if (!exists) {
+                    setState(() {
+                      section = val;
+                    });
+                  } else {
+                    setState(() {
+                      section = null;
+                    });
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    AppUtils.hideLoadingDialog(context);
+                    AppUtils.showErrorMessage(
+                      context,
+                      'An unexpected error occurred.',
+                    );
+                    setState(() {
+                      section = null;
+                    });
+                  }
+                }
               },
               child: ListView.separated(
                 separatorBuilder: (context, index) =>

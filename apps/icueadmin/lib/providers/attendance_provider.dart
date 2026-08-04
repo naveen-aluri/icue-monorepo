@@ -24,6 +24,9 @@ class AttendanceProvider extends ChangeNotifier {
         ongoingAttendanceKey = ongoingAttendanceKeys.first;
         ongoingAttendance = box.get(ongoingAttendanceKey);
         return box.get(ongoingAttendanceKey);
+      } else {
+        ongoingAttendanceKey = null;
+        ongoingAttendance = null;
       }
       return null;
     } catch (error, stack) {
@@ -39,6 +42,8 @@ class AttendanceProvider extends ChangeNotifier {
   Future<void> deleteOngoingAttendance(BuildContext context) async {
     try {
       await HiveService.createAttendanceBox.delete(ongoingAttendanceKey);
+      ongoingAttendanceKey = null;
+      ongoingAttendance = null;
       Navigator.of(context, rootNavigator: true).pop();
     } catch (error, stack) {
       if (error.runtimeType.toString() != 'DioException') {
@@ -57,8 +62,8 @@ class AttendanceProvider extends ChangeNotifier {
     try {
       final box = HiveService.createAttendanceBox;
       final key = '${DateTime.now().formattedDate()}-$classId-$section';
-      if (ongoingAttendanceKey == null) {
-        ongoingAttendanceKey ??= key;
+      if (ongoingAttendanceKey != key) {
+        ongoingAttendanceKey = key;
         notifyListeners();
       }
 
@@ -122,9 +127,8 @@ class AttendanceProvider extends ChangeNotifier {
     try {
       final box = HiveService.createAttendanceBox;
       final key = '${DateTime.now().formattedDate()}-$classId-$section';
-      if (ongoingAttendanceKey == null) {
-        ongoingAttendanceKey ??= key;
-        notifyListeners();
+      if (ongoingAttendanceKey != key) {
+        ongoingAttendanceKey = key;
       }
 
       final attendance = box.get(key);
@@ -187,6 +191,7 @@ class AttendanceProvider extends ChangeNotifier {
     AppUtils.showLoadingDialog(context, 'Updating attendance...Please wait...');
     try {
       bool hasError = false;
+      bool isSuccess = false;
       String? errorMessage;
       String? successMessage;
 
@@ -203,22 +208,22 @@ class AttendanceProvider extends ChangeNotifier {
           await box.delete(key);
           successMessage =
               response.data['message'] ?? 'Attendance submitted successfully.';
+          isSuccess = true;
         } else if (response.statusCode == 202) {
-          await box.delete(key);
           hasError = true;
           errorMessage =
               response.data['message'] ??
               'Attendance has already been submitted for this date.';
         } else {
+          hasError = true;
           final responseData = response.data;
           if (responseData is Map && responseData['err'] == true) {
-            hasError = true;
             errorMessage =
                 responseData['message'] ?? 'Failed to save attendance';
           } else {
-            await box.delete(key);
-            successMessage =
-                responseData['message'] ?? 'Attendance submitted successfully.';
+            errorMessage =
+                (responseData is Map ? responseData['message'] : null) ??
+                'Failed to save attendance';
           }
         }
       }
@@ -228,13 +233,73 @@ class AttendanceProvider extends ChangeNotifier {
       } else if (successMessage != null) {
         AppUtils.showSucessMessage(context, successMessage);
       }
-      context.go('/');
+
+      if (isSuccess && !hasError) {
+        ongoingAttendanceKey = null;
+        ongoingAttendance = null;
+        if (context.mounted) {
+          context.go('/');
+        }
+      }
     } catch (error, stack) {
       if (error.runtimeType.toString() != 'DioException') {
         _apiClient.logCrash('/createAttendance', error, stack);
       }
     } finally {
       AppUtils.hideLoadingDialog(context);
+    }
+  }
+
+  Future<bool> checkAttendanceExists({
+    required BuildContext context,
+    required int classId,
+    required String section,
+    required String date,
+    required String period,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        '/v1.0/getClassAttendancesByDate',
+        data: {
+          'ClassId': classId,
+          'Section': section,
+          'AttendanceDate': date,
+          'Period': period,
+          'Source': 'adminapp',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data is List) {
+          if (data.isEmpty) {
+            return false;
+          } else {
+            AppUtils.showErrorMessage(
+              context,
+              'Attendance has already been submitted for this section.',
+            );
+            return true;
+          }
+        } else if (data is Map && data['err'] == true) {
+          AppUtils.showErrorMessage(
+            context,
+            data['message'] ?? 'Failed to check attendance status.',
+          );
+          return true;
+        }
+      }
+
+      AppUtils.showErrorMessage(
+        context,
+        'Failed to check attendance status. Please try again.',
+      );
+      return true;
+    } catch (error, stack) {
+      if (error.runtimeType.toString() != 'DioException') {
+        _apiClient.logCrash('/getClassAttendancesByDate check', error, stack);
+      }
+      return true;
     }
   }
 
@@ -259,6 +324,34 @@ class AttendanceProvider extends ChangeNotifier {
       }
     } finally {
       AppUtils.hideLoadingDialog(context);
+    }
+  }
+
+  Future<void> toggleStudentAttendance(AttendanceStudent student) async {
+    try {
+      final box = HiveService.createAttendanceBox;
+      if (ongoingAttendanceKey == null) return;
+      final attendance = box.get(ongoingAttendanceKey);
+      if (attendance == null) return;
+
+      final index = attendance.students.indexWhere((e) => e.id == student.id);
+      if (index != -1) {
+        attendance.students[index] = AttendanceStudent(
+          id: student.id,
+          name: student.name,
+          rollNo: student.rollNo,
+          admissionNumber: student.admissionNumber,
+          isPresent: !student.isPresent,
+          uid: student.uid,
+          attendanceMode: student.attendanceMode,
+        );
+        await box.put(ongoingAttendanceKey!, attendance);
+        notifyListeners();
+      }
+    } catch (error, stack) {
+      if (error.runtimeType.toString() != 'DioException') {
+        _apiClient.logCrash('toggleStudentAttendance()', error, stack);
+      }
     }
   }
 }

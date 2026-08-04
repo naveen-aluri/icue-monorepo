@@ -28,6 +28,10 @@ object IcueFaceCamera {
         lens: IcueCameraLens = IcueCameraLens.FRONT,
         maxFaces: Int = FaceSdkDefaults.DEFAULT_MAX_FACES,
         threshold: Float = FaceSdkDefaults.DEFAULT_MATCH_THRESHOLD,
+        showMatchingPercentage: Boolean = true,
+        showDetectedLabel: Boolean = true,
+        showUnrecognizedLabel: Boolean = true,
+        unrecognizedLabel: String = "UNREGISTERED STUDENT",
         listener: TrackingListener,
     ) {
         val sessionId = CameraSessionRegistry.registerTracking(
@@ -35,6 +39,10 @@ object IcueFaceCamera {
             profiles,
             maxFaces,
             threshold,
+            showMatchingPercentage,
+            showDetectedLabel,
+            showUnrecognizedLabel,
+            unrecognizedLabel,
             listener,
         )
         activity.startActivity(cameraIntent(activity, sessionId, MODE_TRACKING, lens))
@@ -48,6 +56,10 @@ object IcueFaceCamera {
         maxFaces: Int = FaceSdkDefaults.DEFAULT_MAX_FACES,
         threshold: Float = FaceSdkDefaults.DEFAULT_MATCH_THRESHOLD,
         autoFinish: Boolean = false,
+        showMatchingPercentage: Boolean = true,
+        showDetectedLabel: Boolean = true,
+        showUnrecognizedLabel: Boolean = true,
+        unrecognizedLabel: String = "UNREGISTERED STUDENT",
         callback: AttendanceCallback,
     ) {
         val sessionId = CameraSessionRegistry.registerLiveAttendance(
@@ -56,6 +68,10 @@ object IcueFaceCamera {
             maxFaces,
             threshold,
             autoFinish,
+            showMatchingPercentage,
+            showDetectedLabel,
+            showUnrecognizedLabel,
+            unrecognizedLabel,
             callback,
         )
         activity.startActivity(cameraIntent(activity, sessionId, MODE_LIVE_ATTENDANCE, lens))
@@ -69,6 +85,10 @@ object IcueFaceCamera {
         maxFaces: Int = FaceSdkDefaults.DEFAULT_MAX_FACES,
         threshold: Float = FaceSdkDefaults.DEFAULT_MATCH_THRESHOLD,
         autoFinish: Boolean = false,
+        showMatchingPercentage: Boolean = true,
+        showDetectedLabel: Boolean = true,
+        showUnrecognizedLabel: Boolean = true,
+        unrecognizedLabel: String = "UNREGISTERED STUDENT",
         callback: AttendanceCallback,
     ) {
         val sessionId = CameraSessionRegistry.registerMultiPhotoAttendance(
@@ -77,6 +97,10 @@ object IcueFaceCamera {
             maxFaces,
             threshold,
             autoFinish,
+            showMatchingPercentage,
+            showDetectedLabel,
+            showUnrecognizedLabel,
+            unrecognizedLabel,
             callback,
         )
         activity.startActivity(cameraIntent(activity, sessionId, MODE_MULTI_PHOTO_ATTENDANCE, lens))
@@ -137,6 +161,10 @@ internal sealed interface CameraSession {
         val profiles: List<IcueFaceProfile>,
         val maxFaces: Int,
         val threshold: Float,
+        val showMatchingPercentage: Boolean,
+        val showDetectedLabel: Boolean,
+        val showUnrecognizedLabel: Boolean,
+        val unrecognizedLabel: String,
         val listener: IcueFaceCamera.TrackingListener,
     ) : CameraSession
 
@@ -146,6 +174,10 @@ internal sealed interface CameraSession {
         val maxFaces: Int,
         val threshold: Float,
         val autoFinish: Boolean,
+        val showMatchingPercentage: Boolean,
+        val showDetectedLabel: Boolean,
+        val showUnrecognizedLabel: Boolean,
+        val unrecognizedLabel: String,
         val callback: IcueFaceCamera.AttendanceCallback,
     ) : CameraSession
 
@@ -155,6 +187,10 @@ internal sealed interface CameraSession {
         val maxFaces: Int,
         val threshold: Float,
         val autoFinish: Boolean,
+        val showMatchingPercentage: Boolean,
+        val showDetectedLabel: Boolean,
+        val showUnrecognizedLabel: Boolean,
+        val unrecognizedLabel: String,
         val callback: IcueFaceCamera.AttendanceCallback,
     ) : CameraSession
 }
@@ -175,9 +211,23 @@ internal object CameraSessionRegistry {
         profiles: List<IcueFaceProfile>,
         maxFaces: Int,
         threshold: Float,
+        showMatchingPercentage: Boolean,
+        showDetectedLabel: Boolean,
+        showUnrecognizedLabel: Boolean,
+        unrecognizedLabel: String,
         listener: IcueFaceCamera.TrackingListener,
     ): String = register(
-        CameraSession.Tracking(sdk, profiles.toList(), maxFaces, threshold, listener),
+        CameraSession.Tracking(
+            sdk,
+            profiles.toList(),
+            maxFaces,
+            threshold,
+            showMatchingPercentage,
+            showDetectedLabel,
+            showUnrecognizedLabel,
+            unrecognizedLabel,
+            listener
+        ),
     )
 
     fun registerLiveAttendance(
@@ -186,9 +236,24 @@ internal object CameraSessionRegistry {
         maxFaces: Int,
         threshold: Float,
         autoFinish: Boolean,
+        showMatchingPercentage: Boolean,
+        showDetectedLabel: Boolean,
+        showUnrecognizedLabel: Boolean,
+        unrecognizedLabel: String,
         callback: IcueFaceCamera.AttendanceCallback,
     ): String = register(
-        CameraSession.LiveAttendance(sdk, roster.toList(), maxFaces, threshold, autoFinish, callback),
+        CameraSession.LiveAttendance(
+            sdk,
+            roster.toList(),
+            maxFaces,
+            threshold,
+            autoFinish,
+            showMatchingPercentage,
+            showDetectedLabel,
+            showUnrecognizedLabel,
+            unrecognizedLabel,
+            callback
+        ),
     )
 
     fun registerMultiPhotoAttendance(
@@ -197,9 +262,24 @@ internal object CameraSessionRegistry {
         maxFaces: Int,
         threshold: Float,
         autoFinish: Boolean,
+        showMatchingPercentage: Boolean,
+        showDetectedLabel: Boolean,
+        showUnrecognizedLabel: Boolean,
+        unrecognizedLabel: String,
         callback: IcueFaceCamera.AttendanceCallback,
     ): String = register(
-        CameraSession.MultiPhotoAttendance(sdk, roster.toList(), maxFaces, threshold, autoFinish, callback),
+        CameraSession.MultiPhotoAttendance(
+            sdk,
+            roster.toList(),
+            maxFaces,
+            threshold,
+            autoFinish,
+            showMatchingPercentage,
+            showDetectedLabel,
+            showUnrecognizedLabel,
+            unrecognizedLabel,
+            callback
+        ),
     )
 
     private fun register(newSession: CameraSession): String = synchronized(lock) {
