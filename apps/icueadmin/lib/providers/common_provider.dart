@@ -8,7 +8,7 @@ import '../services/hive_service.dart';
 
 @lazySingleton
 class CommonProvider extends ChangeNotifier {
-  CommonProvider({required this._apiClient});
+  CommonProvider(this._apiClient);
 
   AppSettings? appSettings;
   List<Country> countries = [];

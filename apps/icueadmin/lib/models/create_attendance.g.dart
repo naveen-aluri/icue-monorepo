@@ -27,13 +27,14 @@ class CreateAttendanceAdapter extends TypeAdapter<CreateAttendance> {
       month: fields[3] as int,
       year: fields[9] as int,
       period: fields[4] as String,
+      attendanceMode: fields[10] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, CreateAttendance obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.attendanceDate)
       ..writeByte(1)
@@ -53,7 +54,9 @@ class CreateAttendanceAdapter extends TypeAdapter<CreateAttendance> {
       ..writeByte(8)
       ..write(obj.students)
       ..writeByte(9)
-      ..write(obj.year);
+      ..write(obj.year)
+      ..writeByte(10)
+      ..write(obj.attendanceMode);
   }
 
   @override
@@ -83,13 +86,15 @@ class AttendanceStudentAdapter extends TypeAdapter<AttendanceStudent> {
       rollNo: fields[5] as String,
       admissionNumber: fields[1] as String,
       isPresent: fields[3] as bool,
+      uid: fields[6] as String?,
+      attendanceMode: fields[7] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, AttendanceStudent obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(7)
       ..writeByte(1)
       ..write(obj.admissionNumber)
       ..writeByte(2)
@@ -99,7 +104,11 @@ class AttendanceStudentAdapter extends TypeAdapter<AttendanceStudent> {
       ..writeByte(4)
       ..write(obj.name)
       ..writeByte(5)
-      ..write(obj.rollNo);
+      ..write(obj.rollNo)
+      ..writeByte(6)
+      ..write(obj.uid)
+      ..writeByte(7)
+      ..write(obj.attendanceMode);
   }
 
   @override

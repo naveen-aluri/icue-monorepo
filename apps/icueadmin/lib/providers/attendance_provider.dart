@@ -9,7 +9,7 @@ import '../utils/app_utils.dart';
 
 @lazySingleton
 class AttendanceProvider extends ChangeNotifier {
-  AttendanceProvider({required this._apiClient});
+  AttendanceProvider(this._apiClient);
 
   final ApiClient _apiClient;
   bool loading = false;
@@ -77,6 +77,7 @@ class AttendanceProvider extends ChangeNotifier {
             month: DateTime.now().month,
             year: DateTime.now().year,
             period: period,
+            attendanceMode: student.attendanceMode,
           ),
         );
       } else {
@@ -86,29 +87,147 @@ class AttendanceProvider extends ChangeNotifier {
         } else {
           attendance.students.add(student);
         }
-        await box.put(key, attendance);
+        await box.put(
+          key,
+          CreateAttendance(
+            source: attendance.source,
+            students: attendance.students,
+            classId: attendance.classId,
+            section: attendance.section,
+            standard: attendance.standard,
+            attendanceDate: attendance.attendanceDate,
+            attendanceTime: attendance.attendanceTime,
+            month: attendance.month,
+            year: attendance.year,
+            period: attendance.period,
+            attendanceMode: attendance.attendanceMode ?? student.attendanceMode,
+          ),
+        );
       }
     } catch (error, stack) {
       if (error.runtimeType.toString() != 'DioException') {
         _apiClient.logCrash('updateAttendance()', error, stack);
       }
-    } finally {}
+    }
+  }
+
+  Future<void> updateAttendanceBulk({
+    required int classId,
+    required String className,
+    required String section,
+    required String period,
+    required List<AttendanceStudent> students,
+    String? attendanceMode,
+  }) async {
+    try {
+      final box = HiveService.createAttendanceBox;
+      final key = '${DateTime.now().formattedDate()}-$classId-$section';
+      if (ongoingAttendanceKey == null) {
+        ongoingAttendanceKey ??= key;
+        notifyListeners();
+      }
+
+      final attendance = box.get(key);
+      if (attendance == null) {
+        await box.put(
+          key,
+          CreateAttendance(
+            source: 'adminapp',
+            students: students,
+            classId: classId,
+            section: section,
+            standard: className,
+            attendanceDate: DateTime.now().formattedGatePassDate() ?? '',
+            attendanceTime: DateTime.now().formattedAttendanceTime(),
+            month: DateTime.now().month,
+            year: DateTime.now().year,
+            period: period,
+            attendanceMode:
+                attendanceMode ??
+                (students.isNotEmpty ? students.first.attendanceMode : null),
+          ),
+        );
+      } else {
+        final studentMap = {for (var s in attendance.students) s.id: s};
+        for (var student in students) {
+          studentMap[student.id] = student;
+        }
+        final updatedStudents = studentMap.values.toList();
+        await box.put(
+          key,
+          CreateAttendance(
+            source: attendance.source,
+            students: updatedStudents,
+            classId: attendance.classId,
+            section: attendance.section,
+            standard: attendance.standard,
+            attendanceDate: attendance.attendanceDate,
+            attendanceTime: attendance.attendanceTime,
+            month: attendance.month,
+            year: attendance.year,
+            period: attendance.period,
+            attendanceMode: attendanceMode ?? attendance.attendanceMode,
+          ),
+        );
+      }
+    } catch (error, stack) {
+      if (error.runtimeType.toString() != 'DioException') {
+        _apiClient.logCrash('updateAttendanceBulk()', error, stack);
+      }
+    } finally {
+      notifyListeners();
+    }
   }
 
   Future<void> createAttendance(BuildContext context) async {
-    final attendanceList = HiveService.createAttendanceBox.values.toList();
+    final box = HiveService.createAttendanceBox;
+    final keys = box.keys.toList();
+    if (keys.isEmpty) return;
+
     AppUtils.showLoadingDialog(context, 'Updating attendance...Please wait...');
     try {
-      for (var i = 0; i < attendanceList.length; i++) {
-        final data = attendanceList[i];
-        await _apiClient.post(
+      bool hasError = false;
+      String? errorMessage;
+      String? successMessage;
+
+      for (final key in keys) {
+        final data = box.get(key);
+        if (data == null) continue;
+
+        final response = await _apiClient.post(
           '/v1.0/createAttendance',
           data: createAttendanceToJson(data),
         );
-        await HiveService.createAttendanceBox.deleteAt(i);
+
+        if (response.statusCode == 200) {
+          await box.delete(key);
+          successMessage =
+              response.data['message'] ?? 'Attendance submitted successfully.';
+        } else if (response.statusCode == 202) {
+          await box.delete(key);
+          hasError = true;
+          errorMessage =
+              response.data['message'] ??
+              'Attendance has already been submitted for this date.';
+        } else {
+          final responseData = response.data;
+          if (responseData is Map && responseData['err'] == true) {
+            hasError = true;
+            errorMessage =
+                responseData['message'] ?? 'Failed to save attendance';
+          } else {
+            await box.delete(key);
+            successMessage =
+                responseData['message'] ?? 'Attendance submitted successfully.';
+          }
+        }
       }
 
-      AppUtils.showSucessMessage(context, 'Attendance updated successfully!');
+      if (hasError && errorMessage != null) {
+        AppUtils.showErrorMessage(context, errorMessage);
+      } else if (successMessage != null) {
+        AppUtils.showSucessMessage(context, successMessage);
+      }
       context.go('/');
     } catch (error, stack) {
       if (error.runtimeType.toString() != 'DioException') {

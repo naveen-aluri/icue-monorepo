@@ -28,6 +28,7 @@ class CreateAttendance {
     required this.month,
     required this.year,
     required this.period,
+    this.attendanceMode,
   });
 
   factory CreateAttendance.fromJson(Map<String, dynamic> json) =>
@@ -44,6 +45,7 @@ class CreateAttendance {
         month: json['Month'],
         year: json['Year'],
         period: json['Period'],
+        attendanceMode: json['AttendanceMode'],
       );
 
   @HiveField(0)
@@ -76,6 +78,9 @@ class CreateAttendance {
   @HiveField(9)
   final int year;
 
+  @HiveField(10)
+  final String? attendanceMode;
+
   Map<String, dynamic> toJson() => {
     'Source': source,
     'Students': List<dynamic>.from(students.map((x) => x.toJson())),
@@ -87,6 +92,7 @@ class CreateAttendance {
     'Month': month,
     'Year': year,
     'Period': period,
+    'AttendanceMode': attendanceMode,
   };
 }
 
@@ -98,6 +104,8 @@ class AttendanceStudent {
     required this.rollNo,
     required this.admissionNumber,
     required this.isPresent,
+    this.uid,
+    this.attendanceMode,
   });
 
   factory AttendanceStudent.fromJson(Map<String, dynamic> json) =>
@@ -107,6 +115,8 @@ class AttendanceStudent {
         rollNo: json['RollNo'],
         admissionNumber: json['AdmissionNumber'],
         isPresent: json['IsPresent'],
+        uid: json['UID'],
+        attendanceMode: json['AttendanceMode'],
       );
 
   @HiveField(1)
@@ -124,11 +134,19 @@ class AttendanceStudent {
   @HiveField(5)
   final String rollNo;
 
+  @HiveField(6)
+  final String? uid;
+
+  @HiveField(7)
+  final String? attendanceMode;
+
   Map<String, dynamic> toJson() => {
     'Id': id,
     'Name': name,
     'RollNo': rollNo,
     'AdmissionNumber': admissionNumber,
     'IsPresent': isPresent,
+    'UID': uid,
+    'AttendanceMode': attendanceMode,
   };
 }

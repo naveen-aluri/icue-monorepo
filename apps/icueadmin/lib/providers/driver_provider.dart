@@ -12,7 +12,7 @@ import '../utils/app_utils.dart';
 
 @lazySingleton
 class DriverProvider extends ChangeNotifier {
-  DriverProvider({required this._apiClient});
+  DriverProvider(this._apiClient);
 
   Map<String, Docs?> driverDocs = {};
   List<Driver> drivers = [];

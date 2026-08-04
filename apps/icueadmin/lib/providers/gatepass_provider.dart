@@ -9,7 +9,7 @@ import '../utils/app_utils.dart';
 
 @lazySingleton
 class GatePassProvider extends ChangeNotifier {
-  GatePassProvider({required this._apiClient});
+  GatePassProvider(this._apiClient);
 
   List<GatePassType> gatepassTypes = [];
   bool loading = false;

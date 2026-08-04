@@ -9,6 +9,7 @@ import '../../providers/attendance_provider.dart';
 import '../../providers/students_provider.dart';
 import '../../services/analytics_service.dart';
 import '../../services/injectable.dart';
+import '../../utils/app_utils.dart';
 import 'attendance_confirmation_page.dart';
 
 class SdkAttendancePage extends StatefulWidget {
@@ -63,8 +64,15 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
       );
 
       if (!mounted) return;
+      _studentList = studentsProvider.attendanceStudents;
+
+      if (_studentList.isNotEmpty) {
+        final studentIds = _studentList.map((e) => e.id).toList();
+        await studentsProvider.getStudentEmbeddings(studentIds: studentIds);
+      }
+
+      if (!mounted) return;
       setState(() {
-        _studentList = studentsProvider.attendanceStudents;
         _loadingStudents = false;
         _initializing = false;
       });
@@ -79,20 +87,38 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
   }
 
   List<FaceProfile> _buildRoster() {
-    return _studentList.map((student) {
-      return FaceProfile(
-        personId: student.id.toString(),
-        embedding: List<double>.filled(192, 0.0),
-      );
-    }).toList();
+    final studentsProvider = context.read<StudentsProvider>();
+    final roster = <FaceProfile>[];
+    for (final student in _studentList) {
+      final embedding = studentsProvider.studentEmbeddings[student.id];
+      if (embedding != null && embedding.length == faceEmbeddingSize) {
+        roster.add(
+          FaceProfile(
+            personId: student.id.toString(),
+            embedding: embedding,
+          ),
+        );
+      }
+    }
+    return roster;
   }
 
   Future<void> _startLiveAttendance() async {
     if (_cameraBusy || _studentList.isEmpty) return;
+    final roster = _buildRoster();
+    if (roster.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No registered face profiles found for this class. Please register face profiles first.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _cameraBusy = true);
 
     try {
-      final roster = _buildRoster();
       final result = await _sdk.startLiveAttendance(roster: roster);
       if (!mounted) return;
 
@@ -113,10 +139,20 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
 
   Future<void> _startMultiPhotoAttendance() async {
     if (_cameraBusy || _studentList.isEmpty) return;
+    final roster = _buildRoster();
+    if (roster.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No registered face profiles found for this class. Please register face profiles first.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _cameraBusy = true);
 
     try {
-      final roster = _buildRoster();
       final result = await _sdk.startMultiPhotoAttendance(roster: roster);
       if (!mounted) return;
 
@@ -136,57 +172,55 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
   }
 
   Future<void> _applyAttendanceResult(AttendanceResult result) async {
-    final attendanceProvider = context.read<AttendanceProvider>();
-    final presentIds = result.present.map((e) => e.personId).toSet();
+    if (mounted) {
+      AppUtils.showLoadingDialog(
+        context,
+        'Saving attendance... Please wait...',
+      );
+    }
 
-    for (final student in _studentList) {
-      final isPresent = presentIds.contains(student.id.toString());
-      await attendanceProvider.updateAttendance(
-        classId: widget.standard.classId,
-        className: widget.standard.standard,
-        section: widget.section,
-        period: '',
-        student: AttendanceStudent(
+    try {
+      final attendanceProvider = context.read<AttendanceProvider>();
+      final presentIds = result.present.map((e) => e.personId).toSet();
+
+      final studentsToUpdate = _studentList.map((student) {
+        final isPresent = presentIds.contains(student.id.toString());
+        return AttendanceStudent(
           id: student.id,
           name: student.name,
           rollNo: student.rollNo,
           admissionNumber: student.admissionNumber,
           isPresent: isPresent,
-        ),
-      );
-    }
+          uid: student.uid,
+          attendanceMode: 'FACIAL',
+        );
+      }).toList();
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: const Color(0xFF1E293B),
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Recorded ${result.present.length}/${result.totalRosterCount} present.',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-              ),
-            ],
-          ),
-          action: SnackBarAction(
-            label: 'Review',
-            textColor: const Color(0xFF38BDF8),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AttendanceConfirmationPage(),
-                ),
-              );
-            },
-          ),
-        ),
+      await attendanceProvider.updateAttendanceBulk(
+        classId: widget.standard.classId,
+        className: widget.standard.standard,
+        section: widget.section,
+        period: '',
+        students: studentsToUpdate,
+        attendanceMode: 'FACIAL',
       );
+
+      if (mounted) {
+        AppUtils.hideLoadingDialog(context);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AttendanceConfirmationPage(),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppUtils.hideLoadingDialog(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving attendance: $e')));
+      }
     }
   }
 
@@ -199,6 +233,7 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final studentsProvider = context.watch<StudentsProvider>();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -213,7 +248,7 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
           ? _buildLoadingState(theme)
           : _errorMessage != null
           ? _buildErrorState()
-          : _buildMainContent(theme),
+          : _buildMainContent(theme, studentsProvider),
     );
   }
 
@@ -301,7 +336,7 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
     );
   }
 
-  Widget _buildMainContent(ThemeData theme) {
+  Widget _buildMainContent(ThemeData theme, StudentsProvider studentsProvider) {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       children: [
@@ -352,7 +387,7 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
           onTap: _startMultiPhotoAttendance,
         ),
         const SizedBox(height: 28),
-        _buildRosterSection(theme),
+        _buildRosterSection(theme, studentsProvider),
       ],
     );
   }
@@ -578,7 +613,7 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
     );
   }
 
-  Widget _buildRosterSection(ThemeData theme) {
+  Widget _buildRosterSection(ThemeData theme, StudentsProvider studentsProvider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -627,6 +662,7 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final student = _studentList[index];
+              final hasEmbedding = studentsProvider.studentEmbeddings.containsKey(student.id);
               return Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -684,13 +720,17 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: hasEmbedding
+                            ? Colors.green.shade50
+                            : Colors.orange.shade50,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        'Enrolled',
+                        hasEmbedding ? 'Face Registered' : 'No Face Info',
                         style: TextStyle(
-                          color: Colors.blue.shade700,
+                          color: hasEmbedding
+                              ? Colors.green.shade700
+                              : Colors.orange.shade700,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),

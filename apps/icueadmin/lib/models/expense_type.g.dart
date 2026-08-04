@@ -120,7 +120,10 @@ class DetailAdapter extends TypeAdapter<Detail> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Detail(id: fields[0] as dynamic, name: fields[1] as String?);
+    return Detail(
+      id: fields[0] as dynamic,
+      name: fields[1] as String?,
+    );
   }
 
   @override

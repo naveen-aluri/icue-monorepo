@@ -12,7 +12,7 @@ import 'vehicle_provider.dart';
 
 @lazySingleton
 class AnnouncementsProvider extends ChangeNotifier {
-  AnnouncementsProvider({required this._apiClient});
+  AnnouncementsProvider(this._apiClient);
 
   List<AnnouncementTitle> announcementTitles = [];
   List<Announcements> announcements = [];

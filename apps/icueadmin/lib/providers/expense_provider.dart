@@ -15,7 +15,7 @@ import '../utils/app_utils.dart';
 
 @lazySingleton
 class ExpenseProvider extends ChangeNotifier {
-  ExpenseProvider({required this._apiClient});
+  ExpenseProvider(this._apiClient);
 
   bool loading = false;
 

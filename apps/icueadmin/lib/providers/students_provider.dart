@@ -10,7 +10,7 @@ import 'attendance_provider.dart';
 
 @lazySingleton
 class StudentsProvider extends ChangeNotifier {
-  StudentsProvider({required this._apiClient});
+  StudentsProvider(this._apiClient);
 
   List<StudentData> attendanceStudents = [];
   bool loading = false, studentsLoading = false;
@@ -18,12 +18,14 @@ class StudentsProvider extends ChangeNotifier {
   List<StudentData> students = [];
   bool hasNextPage = true;
   Metadatum? metaData;
+  Map<int, List<double>> studentEmbeddings = {};
 
   final ApiClient _apiClient;
 
   void reset() {
     students.clear();
     attendanceStudents.clear();
+    studentEmbeddings.clear();
     notifyListeners();
   }
 
@@ -149,6 +151,44 @@ class StudentsProvider extends ChangeNotifier {
       }
     } finally {
       studentsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> getStudentEmbeddings({required List<int> studentIds}) async {
+    final user = HiveService.userInfoBox.values.firstOrNull;
+    if (user == null) return;
+
+    try {
+      final response = await _apiClient.post(
+        '/v2.0/getStuEmbeddings',
+        data: {
+          'OrganizationId': user.organizationId,
+          'ZoneId': user.zoneId,
+          'BranchId': user.branchId,
+          'StudentIds': studentIds,
+        },
+      );
+
+      if (response.data != null && response.data['err'] == false) {
+        final data = response.data['data'] as List?;
+        if (data != null) {
+          for (var item in data) {
+            final studentId = item['StudentId'] as int?;
+            final embeddingList = item['Embedding'] as List?;
+            if (studentId != null && embeddingList != null) {
+              studentEmbeddings[studentId] = List<double>.from(
+                embeddingList.map((e) => (e as num).toDouble()),
+              );
+            }
+          }
+        }
+      }
+    } catch (error, stack) {
+      if (error.runtimeType.toString() != 'DioException') {
+        _apiClient.logCrash('/getStuEmbeddings', error, stack);
+      }
+    } finally {
       notifyListeners();
     }
   }

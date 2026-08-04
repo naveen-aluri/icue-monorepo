@@ -15,7 +15,7 @@ import '../utils/constants.dart';
 
 @lazySingleton
 class ReportsProvider extends ChangeNotifier {
-  ReportsProvider({required this._apiClient});
+  ReportsProvider(this._apiClient);
 
   List<AlcoholTest> alcoholTestReport = [];
   List<TimeReport> arrivalTimeReports = [];

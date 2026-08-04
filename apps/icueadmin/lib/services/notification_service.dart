@@ -28,7 +28,7 @@ final StreamController<NotificationResponse> selectNotificationStream =
 @singleton
 @injectable
 class NotificationService {
-  NotificationService({required this._authProvider});
+  NotificationService(this._authProvider);
 
   final AuthProvider _authProvider;
   late AndroidNotificationChannel _channel;

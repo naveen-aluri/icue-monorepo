@@ -9,7 +9,7 @@ import '../utils/app_utils.dart';
 
 @lazySingleton
 class AlcoholTestProvider extends ChangeNotifier {
-  AlcoholTestProvider({required this._apiClient});
+  AlcoholTestProvider(this._apiClient);
 
   bool loading = false;
 

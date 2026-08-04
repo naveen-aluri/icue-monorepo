@@ -34,7 +34,7 @@ import 'students_provider.dart';
 
 @lazySingleton
 class VehicleProvider extends ChangeNotifier {
-  VehicleProvider({required this._apiClient});
+  VehicleProvider(this._apiClient);
 
   bool complainsLoading = false;
   List<ComplaintAction> complaintActions = [];

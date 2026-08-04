@@ -161,6 +161,8 @@ class _CreateAttendancePageState extends State<CreateAttendancePage> {
                                               admissionNumber:
                                                   item.admissionNumber,
                                               isPresent: !isPresent,
+                                              uid: item.uid,
+                                              attendanceMode: 'MANUAL',
                                             ),
                                           );
                                     },
@@ -211,6 +213,8 @@ class _CreateAttendancePageState extends State<CreateAttendancePage> {
           rollNo: swipedStudent.rollNo,
           admissionNumber: swipedStudent.admissionNumber,
           isPresent: isPresent,
+          uid: swipedStudent.uid,
+          attendanceMode: 'MANUAL',
         ),
       );
 
