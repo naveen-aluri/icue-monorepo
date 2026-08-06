@@ -283,6 +283,13 @@ internal object CameraSessionRegistry {
     )
 
     private fun register(newSession: CameraSession): String = synchronized(lock) {
+        val activeActivity = activity.get()
+        if (session != null && (activeActivity == null || activeActivity.isFinishing || activeActivity.isDestroyed)) {
+            cancelTimeoutLocked()
+            sessionId = null
+            session = null
+            activity.clear()
+        }
         check(session == null) { "A face camera session is already active" }
         cancelTimeoutLocked()
         val id = UUID.randomUUID().toString()

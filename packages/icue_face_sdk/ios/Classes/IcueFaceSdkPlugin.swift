@@ -544,6 +544,7 @@ public class IcueFaceSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
                             if presentRecords[personId] == nil {
                                 presentRecords[personId] = [
                                     "personId": personId,
+                                    "score": Double(rec.score),
                                     "confidenceScore": Double(rec.score),
                                     "timestampMillis": nowMs,
                                     "sourceImagePath": path
@@ -566,6 +567,8 @@ public class IcueFaceSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
                 "absentPersonIds": absentIds,
                 "unrecognizedFaceCount": unrecognizedCount,
                 "totalRosterCount": roster.count,
+                "sessionStartTimeMs": startTimeMs,
+                "sessionEndTimeMs": endTimeMs,
                 "sessionStartTimeMillis": startTimeMs,
                 "sessionEndTimeMillis": endTimeMs,
                 "mode": "batchImages",

@@ -36,11 +36,11 @@ public struct IcueFaceProfile {
     public let personId: String
     public let embedding: [Float]
 
-    public init(personId: String, embedding: [Float]) {
-        require(!personId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, "personId cannot be blank")
-        require(embedding.count == 192, "embedding must contain 192 values")
-        for val in embedding {
-            require(val.isFinite, "embedding contains non-finite values")
+    public init?(personId: String, embedding: [Float]) {
+        guard !personId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              embedding.count == 192,
+              embedding.allSatisfy({ $0.isFinite }) else {
+            return nil
         }
         self.personId = personId
         self.embedding = IcueFaceEngine.l2Normalize(embedding)
@@ -145,44 +145,87 @@ internal class IcueFaceEngine {
     ) throws -> [IcueRecognitionResult] {
         return try queue.sync {
             try checkState()
-            require(maxFaces > 0, "maxFaces must be greater than zero")
-            require(threshold.isFinite && threshold >= -1.0 && threshold <= 1.0, "threshold must be finite between -1 and 1")
+            try requireThrow(maxFaces > 0, "maxFaces must be greater than zero")
+            try requireThrow(threshold.isFinite && threshold >= -1.0 && threshold <= 1.0, "threshold must be finite between -1 and 1")
 
-            let faces = try detectFacesInternal(image: image, requireLandmarks: true)
-            if mode == "single" && faces.count != 1 {
-                let code = faces.isEmpty ? "NO_FACE" : "MULTIPLE_FACES"
-                throw IcueFaceException(code: code, message: "Expected exactly one face. Found \(faces.count)")
+            let allFaces = try detectFacesInternal(image: image, requireLandmarks: true)
+            let validFaces = allFaces.filter { $0.frame.width >= 40 && $0.frame.height >= 40 }
+            let faces = validFaces.isEmpty ? allFaces : validFaces
+
+            if mode == "single" && allFaces.count != 1 {
+                let code = allFaces.isEmpty ? "NO_FACE" : "MULTIPLE_FACES"
+                throw IcueFaceException(code: code, message: "Expected exactly one face. Found \(allFaces.count)")
             }
 
             let processFaces = Array(faces.prefix(maxFaces))
-            var results: [IcueRecognitionResult] = []
+            if processFaces.isEmpty { return [] }
 
+            var liveEmbeddings: [[Float]] = []
             for face in processFaces {
                 let cropped = cropAndAlignFace(image: image, face: face)
                 let liveEmbedding = try runInference(faceImage: cropped)
-
-                var bestProfile: IcueFaceProfile? = nil
-                var bestScore: Float = -1.0
-
-                for profile in profiles {
-                    let score = IcueFaceEngine.cosineSimilarity(liveEmbedding, profile.embedding)
-                    if score > bestScore {
-                        bestScore = score
-                        bestProfile = profile
-                    }
-                }
-
-                let matched = (bestProfile != nil) && (bestScore >= threshold)
-                let boundingBox = faceToBoundingBox(face)
-                results.append(IcueRecognitionResult(
-                    personId: matched ? bestProfile?.personId : nil,
-                    score: bestScore,
-                    matched: matched,
-                    boundingBox: boundingBox
-                ))
+                liveEmbeddings.append(liveEmbedding)
             }
 
-            return results
+            if profiles.isEmpty {
+                return processFaces.map { face in
+                    IcueRecognitionResult(personId: nil, score: -1.0, matched: false, boundingBox: faceToBoundingBox(face))
+                }
+            }
+
+            struct CandidateMatch {
+                let faceIdx: Int
+                let profileIdx: Int
+                let score: Float
+            }
+
+            var candidates: [CandidateMatch] = []
+            for fIdx in 0..<processFaces.count {
+                let liveEmb = liveEmbeddings[fIdx]
+                for pIdx in 0..<profiles.count {
+                    let score = IcueFaceEngine.cosineSimilarity(liveEmb, profiles[pIdx].embedding)
+                    candidates.append(CandidateMatch(faceIdx: fIdx, profileIdx: pIdx, score: score))
+                }
+            }
+
+            candidates.sort { $0.score > $1.score }
+
+            var assignedFace = [Bool](repeating: false, count: processFaces.count)
+            var assignedProfile = [Bool](repeating: false, count: profiles.count)
+            var faceResults = [IcueRecognitionResult?](repeating: nil, count: processFaces.count)
+
+            for candidate in candidates {
+                if assignedFace[candidate.faceIdx] || assignedProfile[candidate.profileIdx] { continue }
+                if candidate.score >= threshold {
+                    assignedFace[candidate.faceIdx] = true
+                    assignedProfile[candidate.profileIdx] = true
+                    let matchedProfile = profiles[candidate.profileIdx]
+                    faceResults[candidate.faceIdx] = IcueRecognitionResult(
+                        personId: matchedProfile.personId,
+                        score: candidate.score,
+                        matched: true,
+                        boundingBox: faceToBoundingBox(processFaces[candidate.faceIdx])
+                    )
+                }
+            }
+
+            for fIdx in 0..<processFaces.count {
+                if faceResults[fIdx] == nil {
+                    var bestScore: Float = -1.0
+                    for pIdx in 0..<profiles.count {
+                        let score = IcueFaceEngine.cosineSimilarity(liveEmbeddings[fIdx], profiles[pIdx].embedding)
+                        if score > bestScore { bestScore = score }
+                    }
+                    faceResults[fIdx] = IcueRecognitionResult(
+                        personId: nil,
+                        score: bestScore,
+                        matched: false,
+                        boundingBox: faceToBoundingBox(processFaces[fIdx])
+                    )
+                }
+            }
+
+            return faceResults.compactMap { $0 }
         }
     }
 
@@ -410,8 +453,8 @@ public struct IcueFaceException: Error {
     public let message: String
 }
 
-private func require(_ condition: Bool, _ message: String) {
+private func requireThrow(_ condition: Bool, _ message: String, code: String = "INVALID_ARGUMENT") throws {
     if !condition {
-        fatalError(message)
+        throw IcueFaceException(code: code, message: message)
     }
 }

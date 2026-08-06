@@ -17,9 +17,11 @@ class AttendanceRecord {
   factory AttendanceRecord.fromMap(Map<Object?, Object?> map) {
     final rawBox = map['boundingBox'] as Map<Object?, Object?>?;
     final rawTimestamp = map['timestampMillis'] as int?;
+    final rawScore = map['score'] ?? map['confidenceScore'];
+    final scoreNum = rawScore is num ? rawScore.toDouble() : 0.0;
     return AttendanceRecord(
-      personId: map['personId'] as String,
-      confidenceScore: (map['score'] as num).toDouble(),
+      personId: (map['personId'] as String?) ?? '',
+      confidenceScore: scoreNum,
       boundingBox: rawBox != null ? FaceBoundingBox.fromMap(rawBox) : null,
       timestamp: rawTimestamp != null
           ? DateTime.fromMillisecondsSinceEpoch(rawTimestamp)
@@ -95,10 +97,12 @@ class AttendanceResult {
     }
 
     final startMs =
-        map['sessionStartTimeMs'] as int? ??
+        (map['sessionStartTimeMs'] as int?) ??
+        (map['sessionStartTimeMillis'] as int?) ??
         DateTime.now().millisecondsSinceEpoch;
     final endMs =
-        map['sessionEndTimeMs'] as int? ??
+        (map['sessionEndTimeMs'] as int?) ??
+        (map['sessionEndTimeMillis'] as int?) ??
         DateTime.now().millisecondsSinceEpoch;
 
     return AttendanceResult(
@@ -145,7 +149,7 @@ class AttendanceResult {
 /// Configuration options for class attendance scanning.
 class AttendanceConfig {
   const AttendanceConfig({
-    this.threshold = 0.4,
+    this.threshold = 0.68,
     this.maxFacesPerFrame = 20,
     this.lens = CameraLens.back,
     this.autoFinishWhenComplete = false,

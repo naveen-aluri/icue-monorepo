@@ -153,37 +153,87 @@ class IcueFaceSdk(
         threshold: Float,
     ): List<IcueRecognitionResult> {
         validateRecognitionOptions(maxFaces, threshold)
-        val faces = detector.detect(bitmap, requireLandmarks = true)
-        if (mode == RecognitionMode.SINGLE && faces.size != 1) {
-            val code = if (faces.isEmpty()) FaceSdkErrorCode.NO_FACE else FaceSdkErrorCode.MULTIPLE_FACES
-            throw FaceSdkException(code, "Expected exactly one face. Found ${faces.size}")
+        val allFaces = detector.detect(bitmap, requireLandmarks = true)
+        val faces = allFaces.filter { it.boundingBox.width() >= 40 && it.boundingBox.height() >= 40 }
+            .ifEmpty { allFaces }
+            .take(maxFaces)
+
+        if (mode == RecognitionMode.SINGLE && allFaces.size != 1) {
+            val code = if (allFaces.isEmpty()) FaceSdkErrorCode.NO_FACE else FaceSdkErrorCode.MULTIPLE_FACES
+            throw FaceSdkException(code, "Expected exactly one face. Found ${allFaces.size}")
         }
 
-        return faces.take(maxFaces).map { face ->
+        if (faces.isEmpty()) return emptyList()
+
+        val liveEmbeddings = faces.map { face ->
             val faceBitmap = cropFace(bitmap, face)
-            val liveEmbedding = try {
+            try {
                 recognizer.extractEmbedding(faceBitmap)
             } finally {
                 if (faceBitmap !== bitmap) faceBitmap.recycle()
             }
-
-            var bestProfile: PreparedProfile? = null
-            var bestScore = -1f
-            for (profile in profiles) {
-                val score = EmbeddingMath.dotProductOfNormalized(liveEmbedding, profile.embedding)
-                if (score > bestScore) {
-                    bestScore = score
-                    bestProfile = profile
-                }
-            }
-            val matched = bestProfile != null && bestScore >= threshold
-            IcueRecognitionResult(
-                personId = bestProfile?.personId?.takeIf { matched },
-                score = bestScore,
-                matched = matched,
-                boundingBox = face.toBoundingBox(),
-            )
         }
+
+        if (profiles.isEmpty()) {
+            return faces.map { face ->
+                IcueRecognitionResult(
+                    personId = null,
+                    score = -1f,
+                    matched = false,
+                    boundingBox = face.toBoundingBox(),
+                )
+            }
+        }
+
+        data class CandidateMatch(val faceIdx: Int, val profileIdx: Int, val score: Float)
+        val candidates = mutableListOf<CandidateMatch>()
+
+        for (fIdx in faces.indices) {
+            val liveEmb = liveEmbeddings[fIdx]
+            for (pIdx in profiles.indices) {
+                val score = EmbeddingMath.dotProductOfNormalized(liveEmb, profiles[pIdx].embedding)
+                candidates.add(CandidateMatch(fIdx, pIdx, score))
+            }
+        }
+
+        candidates.sortByDescending { it.score }
+
+        val assignedFace = BooleanArray(faces.size)
+        val assignedProfile = BooleanArray(profiles.size)
+        val faceResults = Array<IcueRecognitionResult?>(faces.size) { null }
+
+        for (candidate in candidates) {
+            if (assignedFace[candidate.faceIdx] || assignedProfile[candidate.profileIdx]) continue
+            if (candidate.score >= threshold) {
+                assignedFace[candidate.faceIdx] = true
+                assignedProfile[candidate.profileIdx] = true
+                val matchedProfile = profiles[candidate.profileIdx]
+                faceResults[candidate.faceIdx] = IcueRecognitionResult(
+                    personId = matchedProfile.personId,
+                    score = candidate.score,
+                    matched = true,
+                    boundingBox = faces[candidate.faceIdx].toBoundingBox(),
+                )
+            }
+        }
+
+        for (fIdx in faces.indices) {
+            if (faceResults[fIdx] == null) {
+                var bestScore = -1f
+                for (pIdx in profiles.indices) {
+                    val score = EmbeddingMath.dotProductOfNormalized(liveEmbeddings[fIdx], profiles[pIdx].embedding)
+                    if (score > bestScore) bestScore = score
+                }
+                faceResults[fIdx] = IcueRecognitionResult(
+                    personId = null,
+                    score = bestScore,
+                    matched = false,
+                    boundingBox = faces[fIdx].toBoundingBox(),
+                )
+            }
+        }
+
+        return faceResults.filterNotNull()
     }
 
     private suspend fun detectFacesInternal(bitmap: Bitmap): List<IcueBoundingBox> =

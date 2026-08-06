@@ -187,6 +187,7 @@ class _CreateAttendancePageState extends State<CreateAttendancePage> {
   }
 
   void _swipeEnd(int previousIndex, int targetIndex, SwiperActivity? activity) {
+    if (!mounted) return;
     final studentProvider = context.read<StudentsProvider>();
 
     if (previousIndex >= studentProvider.attendanceStudents.length ||
@@ -565,7 +566,14 @@ class SwipeButton extends StatelessWidget {
                     : (-progress).clamp(0.0, 1.0));
 
         return GestureDetector(
-          onTap: isRightSwipe ? controller.swipeRight : controller.swipeLeft,
+          onTap: () {
+            if (controller.swipeActivity != null) return;
+            if (isRightSwipe) {
+              controller.swipeRight();
+            } else {
+              controller.swipeLeft();
+            }
+          },
           child: Transform.scale(
             scale: scale,
             child: Container(

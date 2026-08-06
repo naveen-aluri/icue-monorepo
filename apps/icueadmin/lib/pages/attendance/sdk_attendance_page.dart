@@ -96,7 +96,9 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
     final roster = <FaceProfile>[];
     for (final student in _studentList) {
       final embedding = studentsProvider.studentEmbeddings[student.id];
-      if (embedding != null && embedding.length == faceEmbeddingSize) {
+      if (embedding != null &&
+          embedding.length == faceEmbeddingSize &&
+          embedding.every((e) => e.isFinite)) {
         roster.add(
           FaceProfile(personId: student.id.toString(), embedding: embedding),
         );
@@ -227,10 +229,7 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
 
   Future<void> _applyAttendanceResult(AttendanceResult result) async {
     if (!mounted) return;
-    AppUtils.showLoadingDialog(
-      context,
-      'Saving attendance... Please wait...',
-    );
+    AppUtils.showLoadingDialog(context, 'Saving attendance... Please wait...');
 
     try {
       final attendanceProvider = context.read<AttendanceProvider>();

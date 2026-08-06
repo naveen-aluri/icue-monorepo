@@ -32,6 +32,7 @@ internal class IcueFaceCameraViewController: UIViewController, AVCaptureVideoDat
     private var captureSession: AVCaptureSession?
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private let sampleBufferQueue = DispatchQueue(label: "school.icue.face.camera", qos: .userInitiated)
+    private let ciContext = CIContext()
     private var isProcessingFrame = false
 
     private let overlayView = BoundingBoxOverlayView()
@@ -45,6 +46,7 @@ internal class IcueFaceCameraViewController: UIViewController, AVCaptureVideoDat
     private let flashOverlay = UIView()
 
     private var presentRecords: [String: [String: Any]] = [:] // personId -> record map
+    private var presentHitsMap: [String: Int] = [:]
     private var capturedPhotos: [String] = []
     private var sessionStartTime = Date()
 
@@ -293,8 +295,7 @@ internal class IcueFaceCameraViewController: UIViewController, AVCaptureVideoDat
         }
 
         let ciImage = CIImage(cvImageBuffer: imageBuffer)
-        let context = CIContext()
-        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else {
+        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
             isProcessingFrame = false
             return
         }
@@ -368,12 +369,18 @@ internal class IcueFaceCameraViewController: UIViewController, AVCaptureVideoDat
 
                     for res in results {
                         if res.matched, let personId = res.personId {
-                            if self.presentRecords[personId] == nil {
-                                self.presentRecords[personId] = [
-                                    "personId": personId,
-                                    "confidenceScore": Double(res.score),
-                                    "timestampMillis": nowMs
-                                ]
+                            let hits = (self.presentHitsMap[personId] ?? 0) + 1
+                            self.presentHitsMap[personId] = hits
+                            if res.score >= 0.75 || hits >= 2 {
+                                if self.presentRecords[personId] == nil {
+                                    self.presentRecords[personId] = [
+                                        "personId": personId,
+                                        "score": Double(res.score),
+                                        "confidenceScore": Double(res.score),
+                                        "sessionStartTimeMs": nowMs,
+                                        "timestampMillis": nowMs
+                                    ]
+                                }
                             }
                         }
                     }
@@ -452,6 +459,8 @@ internal class IcueFaceCameraViewController: UIViewController, AVCaptureVideoDat
             "absentPersonIds": absentIds,
             "unrecognizedFaceCount": 0,
             "totalRosterCount": profiles.count,
+            "sessionStartTimeMs": startMs,
+            "sessionEndTimeMs": endMs,
             "sessionStartTimeMillis": startMs,
             "sessionEndTimeMillis": endMs,
             "mode": mode == .liveAttendance ? "liveStream" : "multiPhoto",

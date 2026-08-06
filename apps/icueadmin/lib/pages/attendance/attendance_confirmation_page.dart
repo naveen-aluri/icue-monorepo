@@ -18,8 +18,7 @@ class AttendanceConfirmationPage extends StatefulWidget {
       _AttendanceConfirmationPageState();
 }
 
-class _AttendanceConfirmationPageState
-    extends State<AttendanceConfirmationPage>
+class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
     with SingleTickerProviderStateMixin {
   TabController? _tabController;
 
@@ -38,30 +37,46 @@ class _AttendanceConfirmationPageState
     super.dispose();
   }
 
-  void _toggleStudentStatus(
+  Future<void> _toggleStudentStatus(
     BuildContext context,
     AttendanceStudent student,
     AttendanceProvider attendanceProvider,
-  ) {
-    HapticFeedback.selectionClick();
-    attendanceProvider.toggleStudentAttendance(student);
-
+  ) async {
     final newStatus = student.isPresent ? 'Absent' : 'Present';
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 3),
-        content: Text('Marked ${student.name} as $newStatus'),
-        action: SnackBarAction(
-          label: 'UNDO',
-          textColor: Colors.amber,
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            attendanceProvider.toggleStudentAttendance(student);
-          },
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Change Attendance Status'),
+        content: Text(
+          'Are you sure you want to mark ${student.name} as $newStatus?',
         ),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Confirm'),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
+
+    if (confirmed == true) {
+      HapticFeedback.selectionClick();
+      attendanceProvider.toggleStudentAttendance(student);
+    }
   }
 
   @override
@@ -77,7 +92,9 @@ class _AttendanceConfirmationPageState
         final presentStudents = students.where((e) => e.isPresent).toList();
         final absentStudents = students.where((e) => !e.isPresent).toList();
 
-        if (absentStudents.isEmpty && _tabController != null && _tabController!.index == 0) {
+        if (absentStudents.isEmpty &&
+            _tabController != null &&
+            _tabController!.index == 0) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted && _tabController!.index == 0) {
               _tabController!.animateTo(1);
@@ -107,10 +124,7 @@ class _AttendanceConfirmationPageState
           ),
           bottomNavigationBar: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ElevatedButton(
                 onPressed: students.isEmpty
                     ? null
@@ -215,9 +229,6 @@ class _AttendanceConfirmationPageState
                 ),
               ),
             ),
-            onTap: () {
-              _toggleStudentStatus(context, item, attendanceProvider);
-            },
           ),
         );
       },

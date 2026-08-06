@@ -17,13 +17,13 @@ class AssignedEntities {
 
   factory AssignedEntities.fromJson(Map<String, dynamic> json) =>
       AssignedEntities(
-        err: json['err'],
-        message: json['message'],
-        data: json['data'] == null
-            ? null
-            : List<AssignedEntity>.from(
-                json['data'].map((x) => AssignedEntity.fromJson(x)),
-              ),
+        err: json['err'] ?? false,
+        message: json['message'] ?? '',
+        data: json['data'] is List
+            ? List<AssignedEntity>.from(
+                (json['data'] as List).map((x) => AssignedEntity.fromJson(x)),
+              )
+            : null,
       );
 
   final List<AssignedEntity>? data;
@@ -43,9 +43,11 @@ class AssignedEntity {
   AssignedEntity({required this.classes});
 
   factory AssignedEntity.fromJson(Map<String, dynamic> json) => AssignedEntity(
-    classes: List<AssignedEntityClass>.from(
-      json['Classes'].map((x) => AssignedEntityClass.fromJson(x)),
-    ),
+    classes: json['Classes'] is List
+        ? List<AssignedEntityClass>.from(
+            (json['Classes'] as List).map((x) => AssignedEntityClass.fromJson(x)),
+          )
+        : [],
   );
 
   final List<AssignedEntityClass> classes;
@@ -65,10 +67,12 @@ class AssignedEntityClass {
 
   factory AssignedEntityClass.fromJson(Map<String, dynamic> json) =>
       AssignedEntityClass(
-        standard: json['Standard'],
-        classId: json['ClassId'],
+        standard: json['Standard'] ?? '',
+        classId: json['ClassId'] ?? 0,
         standardType: json['StandardType'],
-        sections: List<String>.from(json['Sections'].map((x) => x)),
+        sections: json['Sections'] is List
+            ? List<String>.from((json['Sections'] as List).map((x) => x.toString()))
+            : [],
       );
 
   final int classId;

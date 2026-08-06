@@ -71,6 +71,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
     private var capturedEmbedding: FloatArray? = null
     private var finalAttendanceResult: Map<String, Any?>? = null
     private val markedPresentMap = java.util.concurrent.ConcurrentHashMap<String, Map<String, Any?>>()
+    private val liveAttendanceHitsMap = java.util.concurrent.ConcurrentHashMap<String, Int>()
     private val capturedPhotoPaths = java.util.Collections.synchronizedList(mutableListOf<String>())
     private var unrecognizedCount = 0
     private var photosCapturedCount = 0
@@ -110,6 +111,9 @@ class IcueFaceCameraActivity : ComponentActivity() {
 
     override fun onDestroy() {
         analysisScope.cancel()
+        runCatching {
+            ProcessCameraProvider.getInstance(this).get().unbindAll()
+        }
         analysisExecutor.shutdown()
         val embedding = capturedEmbedding
         val attendance = finalAttendanceResult
@@ -473,7 +477,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
     }
 
     private fun analyze(image: ImageProxy) {
-        if (!processing.compareAndSet(false, true)) {
+        if (analysisExecutor.isShutdown || !processing.compareAndSet(false, true)) {
             image.close()
             return
         }
@@ -486,18 +490,22 @@ class IcueFaceCameraActivity : ComponentActivity() {
             return
         }
         image.close()
-        analysisScope.launch {
-            try {
-                when (val activeSession = session) {
-                    is CameraSession.Capture -> processCapture(activeSession, frame)
-                    is CameraSession.Tracking -> processTracking(activeSession, frame)
-                    is CameraSession.LiveAttendance -> processLiveAttendance(activeSession, frame)
-                    is CameraSession.MultiPhotoAttendance -> processMultiPhotoAttendance(activeSession, frame)
-                    null -> Unit
+        try {
+            analysisScope.launch {
+                try {
+                    when (val activeSession = session) {
+                        is CameraSession.Capture -> processCapture(activeSession, frame)
+                        is CameraSession.Tracking -> processTracking(activeSession, frame)
+                        is CameraSession.LiveAttendance -> processLiveAttendance(activeSession, frame)
+                        is CameraSession.MultiPhotoAttendance -> processMultiPhotoAttendance(activeSession, frame)
+                        null -> Unit
+                    }
+                } finally {
+                    processing.set(false)
                 }
-            } finally {
-                processing.set(false)
             }
+        } catch (_: java.util.concurrent.RejectedExecutionException) {
+            processing.set(false)
         }
     }
 
@@ -620,15 +628,19 @@ class IcueFaceCameraActivity : ComponentActivity() {
             recognitions.forEach { recognition ->
                 if (recognition.matched && recognition.personId != null) {
                     val pId = recognition.personId!!
+                    val hits = (liveAttendanceHitsMap[pId] ?: 0) + 1
+                    liveAttendanceHitsMap[pId] = hits
                     val existing = markedPresentMap[pId]
                     val existingScore = (existing?.get("score") as? Number)?.toDouble() ?: 0.0
-                    if (existing == null || recognition.score > existingScore) {
-                        markedPresentMap[pId] = mapOf(
-                            "personId" to pId,
-                            "score" to recognition.score.toDouble(),
-                            "boundingBox" to recognition.boundingBox.toChannelValue(),
-                            "timestampMillis" to System.currentTimeMillis(),
-                        )
+                    if (recognition.score >= 0.75f || hits >= 2) {
+                        if (existing == null || recognition.score > existingScore) {
+                            markedPresentMap[pId] = mapOf(
+                                "personId" to pId,
+                                "score" to recognition.score.toDouble(),
+                                "boundingBox" to recognition.boundingBox.toChannelValue(),
+                                "timestampMillis" to System.currentTimeMillis(),
+                            )
+                        }
                     }
                 } else {
                     frameUnrecognized++
