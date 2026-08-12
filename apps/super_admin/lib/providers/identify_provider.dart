@@ -37,14 +37,34 @@ class IdentifyProvider extends ChangeNotifier {
   double _preparationProgress = 0.0;
   double get preparationProgress => _preparationProgress;
 
+  AttendanceResult? _attendanceResult;
+  AttendanceResult? get attendanceResult => _attendanceResult;
+
+  List<Student> _presentStudents = [];
+  List<Student> get presentStudents => _presentStudents;
+
   void resetState() {
     _isIdentifying = false;
-    _statusText = 'Select a photo to start identification';
+    _statusText = 'Select an attendance scan mode to start';
     _localImagePath = null;
     _imageSource = null;
     _identifiedStudent = null;
     _confidenceScore = null;
     _preparationProgress = 0.0;
+    _attendanceResult = null;
+    _presentStudents = [];
+    notifyListeners();
+  }
+
+  void setAttendanceResult(AttendanceResult result, List<Student> candidates) {
+    _attendanceResult = result;
+    final presentIds = result.present.map((e) => e.personId).toSet();
+    _presentStudents = candidates
+        .where((student) => presentIds.contains(student.id.toString()))
+        .toList();
+
+    _statusText =
+        'Scan complete: ${_presentStudents.length} identified out of ${result.totalRosterCount} enrolled.';
     notifyListeners();
   }
 
