@@ -235,6 +235,10 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
       final attendanceProvider = context.read<AttendanceProvider>();
       final presentIds = result.present.map((e) => e.personId).toSet();
 
+      final isLiveMode =
+          widget.initialMode == AttendanceModeOption.sdkLive ||
+          result.mode == AttendanceMode.liveStream;
+
       final studentsToUpdate = _studentList.map((student) {
         final isPresent = presentIds.contains(student.id.toString());
         return AttendanceStudent(
@@ -255,6 +259,7 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
         period: '',
         students: studentsToUpdate,
         attendanceMode: 'FACIAL',
+        images: isLiveMode ? null : result.capturedImagePaths,
       );
 
       if (!mounted) return;

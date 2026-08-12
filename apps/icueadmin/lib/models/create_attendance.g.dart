@@ -28,13 +28,14 @@ class CreateAttendanceAdapter extends TypeAdapter<CreateAttendance> {
       year: fields[9] as int,
       period: fields[4] as String,
       attendanceMode: fields[10] as String?,
+      images: (fields[11] as List?)?.cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, CreateAttendance obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.attendanceDate)
       ..writeByte(1)
@@ -56,7 +57,9 @@ class CreateAttendanceAdapter extends TypeAdapter<CreateAttendance> {
       ..writeByte(9)
       ..write(obj.year)
       ..writeByte(10)
-      ..write(obj.attendanceMode);
+      ..write(obj.attendanceMode)
+      ..writeByte(11)
+      ..write(obj.images);
   }
 
   @override

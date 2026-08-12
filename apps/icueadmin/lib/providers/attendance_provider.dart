@@ -1,9 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image/image.dart' as img;
 import 'package:injectable/injectable.dart';
 import 'package:intl/intl.dart';
 
 import '../models/create_attendance.dart';
+import '../models/create_attendance_response.dart';
 import '../services/api_client.dart';
 import '../services/hive_service.dart';
 import '../utils/app_utils.dart';
@@ -131,6 +138,7 @@ class AttendanceProvider extends ChangeNotifier {
     required String period,
     required List<AttendanceStudent> students,
     String? attendanceMode,
+    List<String>? images,
   }) async {
     try {
       final box = HiveService.createAttendanceBox;
@@ -162,6 +170,7 @@ class AttendanceProvider extends ChangeNotifier {
             attendanceMode:
                 attendanceMode ??
                 (students.isNotEmpty ? students.first.attendanceMode : null),
+            images: images,
           ),
         );
       } else {
@@ -170,11 +179,15 @@ class AttendanceProvider extends ChangeNotifier {
           studentMap[student.id] = student;
         }
         final updatedStudents = studentMap.values.toList();
+        final combinedImages = images != null
+            ? {...?attendance.images, ...images}.toList()
+            : attendance.images;
         await box.put(
           key,
           attendance.copyWith(
             students: updatedStudents,
             attendanceMode: attendanceMode ?? attendance.attendanceMode,
+            images: combinedImages,
           ),
         );
       }
@@ -182,6 +195,144 @@ class AttendanceProvider extends ChangeNotifier {
       _apiClient.logCrash('updateAttendanceBulk()', error, stack);
     } finally {
       notifyListeners();
+    }
+  }
+
+  Future<void> setAttendanceImages(List<String> images) async {
+    try {
+      if (ongoingAttendanceKey == null) return;
+      final box = HiveService.createAttendanceBox;
+      final attendance = box.get(ongoingAttendanceKey);
+      if (attendance != null) {
+        await box.put(
+          ongoingAttendanceKey!,
+          attendance.copyWith(images: images),
+        );
+        notifyListeners();
+      }
+    } catch (error, stack) {
+      _apiClient.logCrash('setAttendanceImages()', error, stack);
+    }
+  }
+
+  Uint8List _compressImageBytes(
+    Uint8List inputBytes, {
+    int quality = 35,
+    int maxWidth = 800,
+  }) {
+    try {
+      final decoded = img.decodeImage(inputBytes);
+      if (decoded == null) return inputBytes;
+
+      final resized = decoded.width > maxWidth
+          ? img.copyResize(decoded, width: maxWidth)
+          : decoded;
+
+      return Uint8List.fromList(img.encodeJpg(resized, quality: quality));
+    } catch (_) {
+      return inputBytes;
+    }
+  }
+
+  Future<bool> uploadAttendanceImages({
+    required int id,
+    required List<String> images,
+    BuildContext? context,
+  }) async {
+    if (images.isEmpty) return true;
+    try {
+      final multipartFiles = <MultipartFile>[];
+      for (var i = 0; i < images.length; i++) {
+        final imgPath = images[i];
+        Uint8List? rawBytes;
+
+        if (imgPath.startsWith('data:image')) {
+          final base64Str = imgPath.split(',').last;
+          rawBytes = base64Decode(base64Str);
+        } else {
+          final file = File(imgPath);
+          if (await file.exists()) {
+            rawBytes = await file.readAsBytes();
+          }
+        }
+
+        if (rawBytes != null && rawBytes.isNotEmpty) {
+          final compressedBytes = _compressImageBytes(rawBytes);
+          multipartFiles.add(
+            MultipartFile.fromBytes(
+              compressedBytes,
+              filename: 'attendance_image_$i.jpg',
+              contentType: DioMediaType('image', 'jpeg'),
+            ),
+          );
+        }
+      }
+
+      final formData = FormData.fromMap({
+        'Id': id,
+        'Source': 'adminapp',
+        'Images': multipartFiles.length == 1
+            ? multipartFiles.first
+            : multipartFiles,
+      });
+
+      final response = await _apiClient.post(
+        '/v2.0/uploadAttendanceImages',
+        data: formData,
+      );
+
+      final responseData = response.data;
+      if (response.statusCode == 200) {
+        if (responseData is Map && responseData['err'] == true) {
+          final msg =
+              responseData['message'] ?? 'Failed to upload attendance images.';
+          if (context != null && context.mounted) {
+            AppUtils.showErrorMessage(context, msg);
+          }
+          return false;
+        }
+        return true;
+      } else if (response.statusCode == 202) {
+        final msg =
+            (responseData is Map ? responseData['message'] : null) ??
+            'Images not Uploaded. Please try again.';
+        if (context != null && context.mounted) {
+          AppUtils.showErrorMessage(context, msg);
+        }
+        return false;
+      } else {
+        final msg =
+            (responseData is Map ? responseData['message'] : null) ??
+            'Failed to upload attendance images.';
+        if (context != null && context.mounted) {
+          AppUtils.showErrorMessage(context, msg);
+        }
+        return false;
+      }
+    } on DioException catch (dioError, stack) {
+      final responseData = dioError.response?.data;
+      String message = 'Failed to upload attendance images.';
+      if (responseData is Map && responseData['message'] != null) {
+        message = responseData['message'].toString();
+      } else if (dioError.response?.statusCode == 400) {
+        message = 'Bad Request in uploadAttendanceImages';
+      } else if (dioError.response?.statusCode == 500) {
+        message = 'Failed to save attendance photos';
+      }
+      if (context != null && context.mounted) {
+        AppUtils.showErrorMessage(context, message);
+      }
+      _apiClient.logCrash('/v2.0/uploadAttendanceImages', dioError, stack);
+      return false;
+    } catch (error, stack) {
+      _apiClient.logCrash('/v2.0/uploadAttendanceImages', error, stack);
+      if (context != null && context.mounted) {
+        AppUtils.showErrorMessage(
+          context,
+          'Failed to upload attendance images.',
+        );
+      }
+      return false;
     }
   }
 
@@ -207,9 +358,36 @@ class AttendanceProvider extends ChangeNotifier {
         );
 
         if (response.statusCode == 200) {
+          final responseData = response.data;
+          int? createdId;
+
+          if (responseData is Map) {
+            final createResponse = CreateAttendanceResponse.fromJson(
+              responseData.cast<String, dynamic>(),
+            );
+            createdId = createResponse.id;
+            successMessage = createResponse.message.isNotEmpty
+                ? createResponse.message
+                : 'Attendance submitted successfully.';
+          } else {
+            successMessage = 'Attendance submitted successfully.';
+          }
+
+          // If images exist in the attendance record, upload them using the created Id
+          if (createdId != null &&
+              data.images != null &&
+              data.images!.isNotEmpty) {
+            final uploadResult = await uploadAttendanceImages(
+              id: createdId,
+              images: data.images!,
+              context: context,
+            );
+            if (!uploadResult) {
+              hasError = true;
+            }
+          }
+
           await box.delete(key);
-          successMessage =
-              response.data['message'] ?? 'Attendance submitted successfully.';
           isSuccess = true;
         } else if (response.statusCode == 202) {
           hasError = true;

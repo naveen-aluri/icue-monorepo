@@ -30,6 +30,7 @@ dependencies:
   go_router: ^17.3.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
+  image: ^4.8.0
   image_picker: ^1.2.3
   in_app_update: ^5.0.0
   injectable: ^2.5.1

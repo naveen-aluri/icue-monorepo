@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../dialogs/attendance_mode_dialog.dart';
 import '../../models/assigned_entities.dart';
 import '../../providers/attendance_provider.dart';
+import '../../providers/common_provider.dart';
 import '../../services/analytics_service.dart';
 import '../../services/injectable.dart';
 import '../../utils/app_utils.dart';
@@ -40,7 +41,11 @@ class _SectionsPageState extends State<SectionsPage> {
           onPressed: section == null
               ? null
               : () async {
-                  final mode = await AttendanceModeDialog.show(context);
+                  final commonProvider = context.read<CommonProvider>();
+                  final mode = await AttendanceModeDialog.show(
+                    context,
+                    attendCnfg: commonProvider.appSettings?.attendCnfg,
+                  );
 
                   if (mode == null || !context.mounted) return;
 

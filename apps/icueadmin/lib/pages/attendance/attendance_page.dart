@@ -7,6 +7,7 @@ import '../../models/assigned_entities.dart';
 import '../../models/create_attendance.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/common_provider.dart';
 import '../../widgets/no_data_widget.dart';
 import 'create_attendance_page.dart';
 import 'sections_page.dart';
@@ -26,7 +27,9 @@ class _AttendancePageState extends State<AttendancePage> {
       if (!mounted) return;
       final authProvider = context.read<AuthProvider>();
       final attendanceProvider = context.read<AttendanceProvider>();
+      final commonProvider = context.read<CommonProvider>();
 
+      commonProvider.getAdminAppSettings();
       await authProvider.getAssignedEntities(context, forAttendance: true);
       if (!mounted) return;
 
@@ -158,10 +161,7 @@ class _AttendancePageState extends State<AttendancePage> {
                   },
                   child: const Text(
                     'Discard',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                   ),
                 ),
               ),
@@ -194,10 +194,7 @@ class _AttendancePageState extends State<AttendancePage> {
                   icon: const Icon(Icons.arrow_forward_rounded, size: 18),
                   label: const Text(
                     'Resume Session',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ),
               ),

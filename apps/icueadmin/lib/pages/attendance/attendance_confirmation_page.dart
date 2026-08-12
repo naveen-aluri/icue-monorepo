@@ -1,13 +1,19 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/create_attendance.dart';
 import '../../providers/attendance_provider.dart';
+import '../../providers/common_provider.dart';
 import '../../services/analytics_service.dart';
 import '../../services/hive_service.dart';
 import '../../services/injectable.dart';
+import '../../utils/app_utils.dart';
 import '../../widgets/no_data_widget.dart';
 
 class AttendanceConfirmationPage extends StatefulWidget {
@@ -21,6 +27,7 @@ class AttendanceConfirmationPage extends StatefulWidget {
 class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
     with SingleTickerProviderStateMixin {
   TabController? _tabController;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -35,6 +42,31 @@ class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
   void dispose() {
     _tabController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage(
+    ImageSource source,
+    AttendanceProvider attendanceProvider,
+    List<String> currentImages,
+  ) async {
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        imageQuality: 75,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      );
+      if (picked != null) {
+        final updated = List<String>.from(currentImages)..add(picked.path);
+        await attendanceProvider.setAttendanceImages(updated);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
+      }
+    }
   }
 
   Future<void> _toggleStudentStatus(
@@ -79,15 +111,153 @@ class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
     }
   }
 
+  Widget _buildPhotosSection(
+    BuildContext context,
+    List<String> images,
+    AttendanceProvider attendanceProvider,
+  ) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Attendance Photos (${images.length})',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    builder: (context) => SafeArea(
+                      child: Wrap(
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.camera_alt),
+                            title: const Text('Take Photo'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _pickImage(
+                                ImageSource.camera,
+                                attendanceProvider,
+                                images,
+                              );
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.photo_library),
+                            title: const Text('Choose from Gallery'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _pickImage(
+                                ImageSource.gallery,
+                                attendanceProvider,
+                                images,
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add_a_photo, size: 16),
+                label: const Text('Add Photo', style: TextStyle(fontSize: 13)),
+              ),
+            ],
+          ),
+          if (images.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 72,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: images.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final imgPath = images[index];
+                  return Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: imgPath.startsWith('data:image')
+                            ? Image.memory(
+                                const Base64Decoder().convert(
+                                  imgPath.split(',').last,
+                                ),
+                                width: 72,
+                                height: 72,
+                                fit: BoxFit.cover,
+                              )
+                            : Image.file(
+                                File(imgPath),
+                                width: 72,
+                                height: 72,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Container(
+                                  width: 72,
+                                  height: 72,
+                                  color: Colors.grey.shade300,
+                                  child: const Icon(Icons.broken_image),
+                                ),
+                              ),
+                      ),
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: InkWell(
+                          onTap: () {
+                            final updated = List<String>.from(images)
+                              ..removeAt(index);
+                            attendanceProvider.setAttendanceImages(updated);
+                          },
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(2),
+                            child: const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final attendanceProvider = context.watch<AttendanceProvider>();
+    final commonProvider = context.watch<CommonProvider>();
+    final uploadImagesEnabled =
+        commonProvider.appSettings?.attendCnfg?.uploadAttendImages ?? false;
 
     return ValueListenableBuilder(
       valueListenable: HiveService.createAttendanceBox.listenable(),
       builder: (context, box, _) {
         final data = box.get(attendanceProvider.ongoingAttendanceKey);
         final students = data?.students ?? [];
+        final images = data?.images ?? [];
+        final isLiveCamera = data?.attendanceMode == 'FACIAL_LIVE';
+        final requiresPhotoUpload = uploadImagesEnabled && !isLiveCamera;
 
         final presentStudents = students.where((e) => e.isPresent).toList();
         final absentStudents = students.where((e) => !e.isPresent).toList();
@@ -123,16 +293,33 @@ class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
             ),
           ),
           bottomNavigationBar: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ElevatedButton(
-                onPressed: students.isEmpty
-                    ? null
-                    : () {
-                        attendanceProvider.createAttendance(context);
-                      },
-                child: const Text('SUBMIT ATTENDANCE'),
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!isLiveCamera && (uploadImagesEnabled || images.isNotEmpty))
+                  _buildPhotosSection(context, images, attendanceProvider),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: ElevatedButton(
+                    onPressed: students.isEmpty
+                        ? null
+                        : () {
+                            if (requiresPhotoUpload && images.isEmpty) {
+                              AppUtils.showErrorMessage(
+                                context,
+                                'Please upload or capture at least one attendance photo.',
+                              );
+                              return;
+                            }
+                            attendanceProvider.createAttendance(context);
+                          },
+                    child: const Text('SUBMIT ATTENDANCE'),
+                  ),
+                ),
+              ],
             ),
           ),
           body: students.isEmpty

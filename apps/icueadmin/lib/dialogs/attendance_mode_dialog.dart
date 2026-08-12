@@ -1,22 +1,36 @@
 import 'package:flutter/material.dart';
 
+import '../models/app_settings.dart';
+
 enum AttendanceModeOption { manual, sdkLive, sdkPhoto }
 
 class AttendanceModeDialog extends StatelessWidget {
-  const AttendanceModeDialog({super.key});
+  const AttendanceModeDialog({super.key, this.attendCnfg});
 
-  static Future<AttendanceModeOption?> show(BuildContext context) {
+  final AttendCnfg? attendCnfg;
+
+  static Future<AttendanceModeOption?> show(
+    BuildContext context, {
+    AttendCnfg? attendCnfg,
+  }) {
+    final mode = attendCnfg?.attendanceMode?.toUpperCase();
+    if (mode == 'MANUAL') {
+      return Future.value(AttendanceModeOption.manual);
+    }
     return showModalBottomSheet<AttendanceModeOption>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const AttendanceModeDialog(),
+      builder: (context) => AttendanceModeDialog(attendCnfg: attendCnfg),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final mode = attendCnfg?.attendanceMode?.toUpperCase();
+    final showManual = mode == null || mode == 'BOTH' || mode == 'MANUAL';
+    final showFacial = mode == null || mode == 'BOTH' || mode == 'FACIAL';
 
     return Container(
       decoration: const BoxDecoration(
@@ -80,38 +94,43 @@ class AttendanceModeDialog extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20),
-            _buildOptionCard(
-              context: context,
-              icon: Icons.swipe_rounded,
-              iconColor: theme.primaryColor,
-              title: 'Manual Swiping',
-              subtitle: 'Mark student-by-student with interactive card swipes',
-              option: AttendanceModeOption.manual,
-            ),
-            const SizedBox(height: 12),
-            _buildOptionCard(
-              context: context,
-              icon: Icons.videocam_rounded,
-              iconColor: const Color(0xFF6366F1),
-              title: 'Live Camera Scan',
-              subtitle:
-                  'Automated video sweep across classroom for real-time face matching',
-              option: AttendanceModeOption.sdkLive,
-              isBadge: true,
-              badgeText: 'AUTOMATED',
-            ),
-            const SizedBox(height: 12),
-            _buildOptionCard(
-              context: context,
-              icon: Icons.groups_rounded,
-              iconColor: const Color(0xFF0EA5E9),
-              title: 'Multi-Photo Group Scan',
-              subtitle:
-                  'Capture small group snapshot photos to identify clusters',
-              option: AttendanceModeOption.sdkPhoto,
-              isBadge: true,
-              badgeText: 'GROUP SCAN',
-            ),
+            if (showManual) ...[
+              _buildOptionCard(
+                context: context,
+                icon: Icons.swipe_rounded,
+                iconColor: theme.primaryColor,
+                title: 'Manual Swiping',
+                subtitle:
+                    'Mark student-by-student with interactive card swipes',
+                option: AttendanceModeOption.manual,
+              ),
+              if (showFacial) const SizedBox(height: 12),
+            ],
+            if (showFacial) ...[
+              _buildOptionCard(
+                context: context,
+                icon: Icons.videocam_rounded,
+                iconColor: const Color(0xFF6366F1),
+                title: 'Live Camera Scan',
+                subtitle:
+                    'Automated video sweep across classroom for real-time face matching',
+                option: AttendanceModeOption.sdkLive,
+                isBadge: true,
+                badgeText: 'AUTOMATED',
+              ),
+              const SizedBox(height: 12),
+              _buildOptionCard(
+                context: context,
+                icon: Icons.groups_rounded,
+                iconColor: const Color(0xFF0EA5E9),
+                title: 'Multi-Photo Group Scan',
+                subtitle:
+                    'Capture small group snapshot photos to identify clusters',
+                option: AttendanceModeOption.sdkPhoto,
+                isBadge: true,
+                badgeText: 'GROUP SCAN',
+              ),
+            ],
           ],
         ),
       ),

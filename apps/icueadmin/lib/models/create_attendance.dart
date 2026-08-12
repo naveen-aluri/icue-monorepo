@@ -29,6 +29,7 @@ class CreateAttendance {
     required this.year,
     required this.period,
     this.attendanceMode,
+    this.images,
   });
 
   factory CreateAttendance.fromJson(Map<String, dynamic> json) =>
@@ -46,6 +47,9 @@ class CreateAttendance {
         year: json['Year'],
         period: json['Period'],
         attendanceMode: json['AttendanceMode'],
+        images: json['Images'] != null
+            ? List<String>.from(json['Images'])
+            : null,
       );
 
   @HiveField(0)
@@ -81,6 +85,9 @@ class CreateAttendance {
   @HiveField(10)
   final String? attendanceMode;
 
+  @HiveField(11)
+  final List<String>? images;
+
   Map<String, dynamic> toJson() => {
     'Source': source,
     'Students': List<dynamic>.from(students.map((x) => x.toJson())),
@@ -93,6 +100,7 @@ class CreateAttendance {
     'Year': year,
     'Period': period,
     'AttendanceMode': attendanceMode,
+    if (images != null) 'Images': images,
   };
 
   CreateAttendance copyWith({
@@ -107,6 +115,7 @@ class CreateAttendance {
     int? year,
     String? period,
     String? attendanceMode,
+    List<String>? images,
   }) {
     return CreateAttendance(
       source: source ?? this.source,
@@ -120,6 +129,7 @@ class CreateAttendance {
       year: year ?? this.year,
       period: period ?? this.period,
       attendanceMode: attendanceMode ?? this.attendanceMode,
+      images: images ?? this.images,
     );
   }
 }
