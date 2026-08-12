@@ -5,6 +5,14 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "SUPER ADMIN DEV",
+      "cwd": "apps/super_admin",
+      "request": "launch",
+      "type": "dart",
+      "args": ["--flavor", "dev"],
+      "toolArgs": ["--dart-define", "ENVIRONMENT=DEV"]
+    },
+    {
       "name": "ADMIN DEV",
       "cwd": "apps/icueadmin",
       "request": "launch",
