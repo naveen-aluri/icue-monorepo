@@ -32,6 +32,7 @@ object IcueFaceCamera {
         showDetectedLabel: Boolean = true,
         showUnrecognizedLabel: Boolean = true,
         unrecognizedLabel: String = "UNREGISTERED STUDENT",
+        defaultZoom: Float = 1.0f,
         listener: TrackingListener,
     ) {
         val sessionId = CameraSessionRegistry.registerTracking(
@@ -43,6 +44,7 @@ object IcueFaceCamera {
             showDetectedLabel,
             showUnrecognizedLabel,
             unrecognizedLabel,
+            defaultZoom,
             listener,
         )
         activity.startActivity(cameraIntent(activity, sessionId, MODE_TRACKING, lens))
@@ -60,6 +62,7 @@ object IcueFaceCamera {
         showDetectedLabel: Boolean = true,
         showUnrecognizedLabel: Boolean = true,
         unrecognizedLabel: String = "UNREGISTERED STUDENT",
+        defaultZoom: Float = 1.0f,
         callback: AttendanceCallback,
     ) {
         val sessionId = CameraSessionRegistry.registerLiveAttendance(
@@ -72,6 +75,7 @@ object IcueFaceCamera {
             showDetectedLabel,
             showUnrecognizedLabel,
             unrecognizedLabel,
+            defaultZoom,
             callback,
         )
         activity.startActivity(cameraIntent(activity, sessionId, MODE_LIVE_ATTENDANCE, lens))
@@ -89,6 +93,7 @@ object IcueFaceCamera {
         showDetectedLabel: Boolean = true,
         showUnrecognizedLabel: Boolean = true,
         unrecognizedLabel: String = "UNREGISTERED STUDENT",
+        defaultZoom: Float = 1.0f,
         callback: AttendanceCallback,
     ) {
         val sessionId = CameraSessionRegistry.registerMultiPhotoAttendance(
@@ -101,6 +106,7 @@ object IcueFaceCamera {
             showDetectedLabel,
             showUnrecognizedLabel,
             unrecognizedLabel,
+            defaultZoom,
             callback,
         )
         activity.startActivity(cameraIntent(activity, sessionId, MODE_MULTI_PHOTO_ATTENDANCE, lens))
@@ -165,6 +171,7 @@ internal sealed interface CameraSession {
         val showDetectedLabel: Boolean,
         val showUnrecognizedLabel: Boolean,
         val unrecognizedLabel: String,
+        val defaultZoom: Float = 1.0f,
         val listener: IcueFaceCamera.TrackingListener,
     ) : CameraSession
 
@@ -178,6 +185,7 @@ internal sealed interface CameraSession {
         val showDetectedLabel: Boolean,
         val showUnrecognizedLabel: Boolean,
         val unrecognizedLabel: String,
+        val defaultZoom: Float = 1.0f,
         val callback: IcueFaceCamera.AttendanceCallback,
     ) : CameraSession
 
@@ -191,6 +199,7 @@ internal sealed interface CameraSession {
         val showDetectedLabel: Boolean,
         val showUnrecognizedLabel: Boolean,
         val unrecognizedLabel: String,
+        val defaultZoom: Float = 1.0f,
         val callback: IcueFaceCamera.AttendanceCallback,
     ) : CameraSession
 }
@@ -215,6 +224,7 @@ internal object CameraSessionRegistry {
         showDetectedLabel: Boolean,
         showUnrecognizedLabel: Boolean,
         unrecognizedLabel: String,
+        defaultZoom: Float,
         listener: IcueFaceCamera.TrackingListener,
     ): String = register(
         CameraSession.Tracking(
@@ -226,6 +236,7 @@ internal object CameraSessionRegistry {
             showDetectedLabel,
             showUnrecognizedLabel,
             unrecognizedLabel,
+            defaultZoom,
             listener
         ),
     )
@@ -240,6 +251,7 @@ internal object CameraSessionRegistry {
         showDetectedLabel: Boolean,
         showUnrecognizedLabel: Boolean,
         unrecognizedLabel: String,
+        defaultZoom: Float,
         callback: IcueFaceCamera.AttendanceCallback,
     ): String = register(
         CameraSession.LiveAttendance(
@@ -252,6 +264,7 @@ internal object CameraSessionRegistry {
             showDetectedLabel,
             showUnrecognizedLabel,
             unrecognizedLabel,
+            defaultZoom,
             callback
         ),
     )
@@ -266,6 +279,7 @@ internal object CameraSessionRegistry {
         showDetectedLabel: Boolean,
         showUnrecognizedLabel: Boolean,
         unrecognizedLabel: String,
+        defaultZoom: Float,
         callback: IcueFaceCamera.AttendanceCallback,
     ): String = register(
         CameraSession.MultiPhotoAttendance(
@@ -278,6 +292,7 @@ internal object CameraSessionRegistry {
             showDetectedLabel,
             showUnrecognizedLabel,
             unrecognizedLabel,
+            defaultZoom,
             callback
         ),
     )

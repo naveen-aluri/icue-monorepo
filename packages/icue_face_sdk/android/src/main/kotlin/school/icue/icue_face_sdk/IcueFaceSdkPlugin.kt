@@ -319,6 +319,7 @@ class IcueFaceSdkPlugin :
         val showDetectedLabel = call.argument<Boolean>("showDetectedLabel") ?: true
         val showUnrecognizedLabel = call.argument<Boolean>("showUnrecognizedLabel") ?: true
         val unrecognizedLabel = call.argument<String>("unrecognizedLabel") ?: "UNREGISTERED STUDENT"
+        val defaultZoom = (call.argument<Number>("defaultZoom") ?: 1.0).toFloat()
         try {
             IcueFaceCamera.startTracking(
                 hostActivity,
@@ -331,6 +332,7 @@ class IcueFaceSdkPlugin :
                 showDetectedLabel,
                 showUnrecognizedLabel,
                 unrecognizedLabel,
+                defaultZoom,
                 object : IcueFaceCamera.TrackingListener {
                     override fun onFaces(result: IcueFaceTrackingResult) {
                         trackingEventSink?.success(result.toTrackingChannelValue())
@@ -368,6 +370,7 @@ class IcueFaceSdkPlugin :
         val showDetectedLabel = call.argument<Boolean>("showDetectedLabel") ?: true
         val showUnrecognizedLabel = call.argument<Boolean>("showUnrecognizedLabel") ?: true
         val unrecognizedLabel = call.argument<String>("unrecognizedLabel") ?: "UNREGISTERED STUDENT"
+        val defaultZoom = (call.argument<Number>("defaultZoom") ?: 1.0).toFloat()
         try {
             IcueFaceCamera.openLiveAttendance(
                 hostActivity,
@@ -381,6 +384,7 @@ class IcueFaceSdkPlugin :
                 showDetectedLabel,
                 showUnrecognizedLabel,
                 unrecognizedLabel,
+                defaultZoom,
                 object : IcueFaceCamera.AttendanceCallback {
                     override fun onCompleted(resultMap: Map<String, Any?>) {
                         result.success(resultMap)
@@ -412,6 +416,7 @@ class IcueFaceSdkPlugin :
         val showDetectedLabel = call.argument<Boolean>("showDetectedLabel") ?: true
         val showUnrecognizedLabel = call.argument<Boolean>("showUnrecognizedLabel") ?: true
         val unrecognizedLabel = call.argument<String>("unrecognizedLabel") ?: "UNREGISTERED STUDENT"
+        val defaultZoom = (call.argument<Number>("defaultZoom") ?: 1.0).toFloat()
         try {
             IcueFaceCamera.openMultiPhotoAttendance(
                 hostActivity,
@@ -425,6 +430,7 @@ class IcueFaceSdkPlugin :
                 showDetectedLabel,
                 showUnrecognizedLabel,
                 unrecognizedLabel,
+                defaultZoom,
                 object : IcueFaceCamera.AttendanceCallback {
                     override fun onCompleted(resultMap: Map<String, Any?>) {
                         result.success(resultMap)
@@ -486,7 +492,7 @@ class IcueFaceSdkPlugin :
                     }
                     unrecognizedFaceCount += frameUnrecognized
                 } finally {
-                    if (!bitmap.isRecycled) bitmap.recycle()
+                    // Bitmap is left for Android GC (NativeAllocationRegistry) to reclaim safely once MLKit finishes.
                 }
             }
 
@@ -558,7 +564,7 @@ class IcueFaceSdkPlugin :
         return try {
             block(bitmap)
         } finally {
-            if (!bitmap.isRecycled) bitmap.recycle()
+            // Bitmap is left for Android GC (NativeAllocationRegistry) to reclaim safely once MLKit finishes.
         }
     }
 

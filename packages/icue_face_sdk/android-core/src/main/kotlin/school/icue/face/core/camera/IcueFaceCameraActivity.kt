@@ -18,6 +18,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.os.Bundle
+import android.util.Size
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -25,9 +26,12 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.view.ScaleGestureDetector
+import android.widget.SeekBar
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -44,6 +48,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
@@ -62,6 +67,11 @@ class IcueFaceCameraActivity : ComponentActivity() {
     private lateinit var previewView: PreviewView
     private lateinit var overlay: FaceOverlayView
     private lateinit var statusPill: TextView
+    private var camera: Camera? = null
+    private var scaleGestureDetector: ScaleGestureDetector? = null
+    private var zoomSlider: SeekBar? = null
+    private var zoomLabel: TextView? = null
+    private val zoomPresetButtons = mutableListOf<ZoomPresetButton>()
     private var shutterButton: FrameLayout? = null
     private var flashOverlay: View? = null
     private var sessionId: String? = null
@@ -326,6 +336,125 @@ class IcueFaceCameraActivity : ComponentActivity() {
             }
         }
 
+        scaleGestureDetector = ScaleGestureDetector(this,
+            object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                override fun onScale(detector: ScaleGestureDetector): Boolean {
+                    val cam = camera ?: return true
+                    val zoomState = cam.cameraInfo.zoomState.value ?: return true
+                    val newRatio = (zoomState.zoomRatio * detector.scaleFactor)
+                        .coerceIn(zoomState.minZoomRatio, zoomState.maxZoomRatio)
+                    cam.cameraControl.setZoomRatio(newRatio)
+                    updateZoomUi(newRatio, zoomState.minZoomRatio, zoomState.maxZoomRatio)
+                    return true
+                }
+            }
+        )
+
+        previewView.setOnTouchListener { _, event ->
+            scaleGestureDetector?.onTouchEvent(event)
+            true
+        }
+
+        val isAttendanceOrTracking = session is CameraSession.LiveAttendance ||
+            session is CameraSession.MultiPhotoAttendance ||
+            session is CameraSession.Tracking
+
+        var zoomContainer: LinearLayout? = null
+        if (isAttendanceOrTracking) {
+            zoomPresetButtons.clear()
+
+            val presetRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+
+            listOf(1.0f, 2.0f, 3.0f, 5.0f).forEach { zoomVal ->
+                val btn = ZoomPresetButton(this@IcueFaceCameraActivity, zoomVal).apply {
+                    setOnClickListener { view ->
+                        val cam = camera ?: return@setOnClickListener
+                        val zoomState = cam.cameraInfo.zoomState.value ?: return@setOnClickListener
+                        val clamped = zoomVal.coerceIn(zoomState.minZoomRatio, zoomState.maxZoomRatio)
+                        cam.cameraControl.setZoomRatio(clamped)
+                        updateZoomUi(clamped, zoomState.minZoomRatio, zoomState.maxZoomRatio)
+                        view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                    }
+                }
+                zoomPresetButtons.add(btn)
+                presetRow.addView(btn, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    leftMargin = dp(4)
+                    rightMargin = dp(4)
+                })
+            }
+
+            zoomLabel = TextView(this).apply {
+                text = "1.0x"
+                setTextColor(COLOR_ACCENT_CYAN)
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                letterSpacing = 0.04f
+                gravity = Gravity.CENTER
+                setPadding(dp(6), 0, dp(6), 0)
+            }
+
+            zoomSlider = SeekBar(this).apply {
+                max = 100
+                progress = 0
+                progressTintList = ColorStateList.valueOf(COLOR_ACCENT_CYAN)
+                thumbTintList = ColorStateList.valueOf(COLOR_ACCENT_CYAN)
+                progressBackgroundTintList = ColorStateList.valueOf(0x44FFFFFF)
+                setPadding(dp(8), 0, dp(8), 0)
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                        if (!fromUser) return
+                        val cam = camera ?: return
+                        val zoomState = cam.cameraInfo.zoomState.value ?: return
+                        val ratio = zoomState.minZoomRatio +
+                            (progress / 100f) * (zoomState.maxZoomRatio - zoomState.minZoomRatio)
+                        cam.cameraControl.setZoomRatio(ratio)
+                        updateZoomUi(ratio, zoomState.minZoomRatio, zoomState.maxZoomRatio)
+                    }
+                    override fun onStartTrackingTouch(seekBar: SeekBar) {}
+                    override fun onStopTrackingTouch(seekBar: SeekBar) {}
+                })
+            }
+
+            val sliderRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(4), 0, dp(4), 0)
+                addView(TextView(this@IcueFaceCameraActivity).apply {
+                    text = "🔍"
+                    textSize = 11f
+                    setPadding(dp(2), 0, dp(2), 0)
+                })
+                addView(zoomSlider, LinearLayout.LayoutParams(0, dp(28), 1f))
+                addView(zoomLabel, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ))
+            }
+
+            zoomContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(dp(14), dp(8), dp(14), dp(8))
+                background = roundedPill(0xCC0B1422.toInt(), 0x4400E5FF.toInt())
+                addView(presetRow, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    bottomMargin = dp(6)
+                })
+                addView(sliderRow, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ))
+            }
+        }
+
         val root = FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK)
             addView(previewView)
@@ -366,6 +495,18 @@ class IcueFaceCameraActivity : ComponentActivity() {
                 topMargin = dp(68)
             })
 
+            zoomContainer?.let { zc ->
+                addView(zc, FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+                ).apply {
+                    leftMargin = dp(24)
+                    rightMargin = dp(24)
+                    bottomMargin = dp(96)
+                })
+            }
+
             actionButton?.let { bar ->
                 addView(bar, FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -394,6 +535,12 @@ class IcueFaceCameraActivity : ComponentActivity() {
             (topPillContainer.layoutParams as FrameLayout.LayoutParams).apply {
                 topMargin = safeInsets.top + dp(68)
                 topPillContainer.layoutParams = this
+            }
+            zoomContainer?.let { zc ->
+                (zc.layoutParams as FrameLayout.LayoutParams).apply {
+                    bottomMargin = safeInsets.bottom + dp(104)
+                    zc.layoutParams = this
+                }
             }
             actionButton?.let { bar ->
                 (bar.layoutParams as FrameLayout.LayoutParams).apply {
@@ -455,12 +602,15 @@ class IcueFaceCameraActivity : ComponentActivity() {
         providerFuture.addListener({
             try {
                 val provider = providerFuture.get()
-                val preview = Preview.Builder().build().also {
+                val preview = Preview.Builder()
+                    .setTargetResolution(Size(1920, 1080))
+                    .build().also {
                     it.surfaceProvider = previewView.surfaceProvider
                 }
                 val analysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                    .setTargetResolution(Size(1920, 1080))
                     .build()
                 analysis.setAnalyzer(analysisExecutor, ::analyze)
                 val selector = if (frontCamera) {
@@ -469,15 +619,47 @@ class IcueFaceCameraActivity : ComponentActivity() {
                     CameraSelector.DEFAULT_BACK_CAMERA
                 }
                 provider.unbindAll()
-                provider.bindToLifecycle(this, selector, preview, analysis)
+                camera = provider.bindToLifecycle(this, selector, preview, analysis)
+                applyDefaultZoom()
             } catch (error: Throwable) {
                 fail("CAMERA_UNAVAILABLE", error.message ?: "Unable to open camera")
             }
         }, ContextCompat.getMainExecutor(this))
     }
 
+    private fun applyDefaultZoom() {
+        val cam = camera ?: return
+        val isAttendanceMode = session is CameraSession.LiveAttendance ||
+            session is CameraSession.MultiPhotoAttendance ||
+            session is CameraSession.Tracking
+        if (!isAttendanceMode || frontCamera) return
+        val defaultZoom = when (val s = session) {
+            is CameraSession.LiveAttendance -> s.defaultZoom
+            is CameraSession.MultiPhotoAttendance -> s.defaultZoom
+            is CameraSession.Tracking -> s.defaultZoom
+            else -> return
+        }
+        val zoomState = cam.cameraInfo.zoomState.value ?: return
+        val clampedZoom = defaultZoom.coerceIn(zoomState.minZoomRatio, zoomState.maxZoomRatio)
+        cam.cameraControl.setZoomRatio(clampedZoom)
+        updateZoomUi(clampedZoom, zoomState.minZoomRatio, zoomState.maxZoomRatio)
+    }
+
+    private fun updateZoomUi(current: Float, min: Float, max: Float) {
+        runOnUiThread {
+            zoomLabel?.text = "%.1fx".format(current)
+            val progress = if (max > min) {
+                ((current - min) / (max - min) * 100).toInt()
+            } else 0
+            zoomSlider?.progress = progress
+            zoomPresetButtons.forEach { btn ->
+                btn.isPresetSelected = kotlin.math.abs(btn.zoomValue - current) < 0.15f
+            }
+        }
+    }
+
     private fun analyze(image: ImageProxy) {
-        if (analysisExecutor.isShutdown || !processing.compareAndSet(false, true)) {
+        if (analysisExecutor.isShutdown || !analysisScope.isActive || !processing.compareAndSet(false, true)) {
             image.close()
             return
         }
@@ -491,6 +673,10 @@ class IcueFaceCameraActivity : ComponentActivity() {
         }
         image.close()
         try {
+            if (!analysisScope.isActive) {
+                processing.set(false)
+                return
+            }
             analysisScope.launch {
                 try {
                     when (val activeSession = session) {
@@ -632,7 +818,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
                     liveAttendanceHitsMap[pId] = hits
                     val existing = markedPresentMap[pId]
                     val existingScore = (existing?.get("score") as? Number)?.toDouble() ?: 0.0
-                    if (recognition.score >= 0.75f || hits >= 2) {
+                    if (recognition.score >= activeSession.threshold || hits >= 2) {
                         if (existing == null || recognition.score > existingScore) {
                             markedPresentMap[pId] = mapOf(
                                 "personId" to pId,
@@ -989,6 +1175,45 @@ private class CameraFlipIconView(context: Context) : View(context) {
             close()
         }
         canvas.drawPath(p2, fillPaint)
+    }
+}
+
+private class ZoomPresetButton(context: Context, val zoomValue: Float) : TextView(context) {
+    private val density = resources.displayMetrics.density
+    private fun dp(value: Int): Int = (value * density).toInt()
+
+    var isPresetSelected: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                updateStyle()
+            }
+        }
+
+    init {
+        text = if (zoomValue == zoomValue.toInt().toFloat()) "${zoomValue.toInt()}x" else "%.1fx".format(zoomValue)
+        textSize = 11f
+        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        gravity = Gravity.CENTER
+        setPadding(dp(10), dp(5), dp(10), dp(5))
+        updateStyle()
+    }
+
+    private fun updateStyle() {
+        if (isPresetSelected) {
+            setTextColor(0xFF0B1422.toInt())
+            background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(0xFF00E5FF.toInt())
+            }
+        } else {
+            setTextColor(0xFFF1F5F9.toInt())
+            background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(0x44101B2B.toInt())
+                setStroke(dp(1), 0x22FFFFFF.toInt())
+            }
+        }
     }
 }
 

@@ -10,7 +10,6 @@ On-device face detection and MobileFaceNet recognition for iOS, Android, and Flu
 | Flutter Android | Android 7.0 / API 24 and newer |
 | Flutter iOS     | iOS 13.0 and newer             |
 
-
 The pipeline uses bundled ML Kit face detection and the bundled
 `mobilefacenet.tflite` model. Embeddings contain 192 normalized `float32`
 values and the default cosine-similarity threshold is `0.68`.
@@ -192,8 +191,9 @@ bytes without JPEG encoding, while the NV21 path uses `YuvImage` compression.
 
 ## Native Android installation
 
-The standalone Android library is in `android-core` and publishes the Maven
-coordinate `school.icue:icue-face-core:0.2.0`.
+The standalone Android library is in `android-core` (`school.icue:icue-face-core:0.2.0`).
+
+> 📘 **AAR Binary Setup Guide**: For standalone native Android app integration via `.aar` binary export, see [NATIVE_ANDROID_SETUP.md](file:///Users/naveenaluri/Development/icue/icue_monorepo/packages/icue_face_sdk/NATIVE_ANDROID_SETUP.md).
 
 It can be included directly from this repository:
 

@@ -153,6 +153,7 @@ class AttendanceConfig {
     this.maxFacesPerFrame = 20,
     this.lens = CameraLens.back,
     this.autoFinishWhenComplete = false,
+    this.defaultZoom = 1.0,
     this.showMatchingPercentage = true,
     this.showDetectedLabel = true,
     this.showUnrecognizedLabel = true,
@@ -161,12 +162,14 @@ class AttendanceConfig {
          threshold >= 0.0 && threshold <= 1.0,
          'Threshold must be between 0.0 and 1.0',
        ),
-       assert(maxFacesPerFrame > 0, 'maxFacesPerFrame must be greater than 0');
+       assert(maxFacesPerFrame > 0, 'maxFacesPerFrame must be greater than 0'),
+       assert(defaultZoom >= 1.0, 'defaultZoom must be >= 1.0');
 
   final double threshold;
   final int maxFacesPerFrame;
   final CameraLens lens;
   final bool autoFinishWhenComplete;
+  final double defaultZoom;
   final bool showMatchingPercentage;
   final bool showDetectedLabel;
   final bool showUnrecognizedLabel;

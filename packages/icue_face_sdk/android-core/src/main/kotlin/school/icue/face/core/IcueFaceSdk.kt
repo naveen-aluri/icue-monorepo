@@ -154,7 +154,7 @@ class IcueFaceSdk(
     ): List<IcueRecognitionResult> {
         validateRecognitionOptions(maxFaces, threshold)
         val allFaces = detector.detect(bitmap, requireLandmarks = true)
-        val faces = allFaces.filter { it.boundingBox.width() >= 40 && it.boundingBox.height() >= 40 }
+        val faces = allFaces.filter { it.boundingBox.width() >= 30 && it.boundingBox.height() >= 30 }
             .ifEmpty { allFaces }
             .take(maxFaces)
 
@@ -269,8 +269,8 @@ class IcueFaceSdk(
     }
 
     private fun cropBoxFace(bitmap: Bitmap, boundingBox: Rect): Bitmap {
-        val marginX = (boundingBox.width() * 0.15f).toInt()
-        val marginY = (boundingBox.height() * 0.15f).toInt()
+        val marginX = (boundingBox.width() * 0.25f).toInt()
+        val marginY = (boundingBox.height() * 0.25f).toInt()
         val left = (boundingBox.left - marginX).coerceIn(0, bitmap.width - 1)
         val top = (boundingBox.top - marginY).coerceIn(0, bitmap.height - 1)
         val right = (boundingBox.right + marginX).coerceIn(left + 1, bitmap.width)
@@ -289,7 +289,10 @@ class IcueFaceSdk(
         try {
             block(bitmap)
         } finally {
-            if (!bitmap.isRecycled) bitmap.recycle()
+            // Bitmap is left for Android's NativeAllocationRegistry (GC) to reclaim safely once MLKit
+            // background tasks (MlKitThreadPool) complete. Explicitly calling bitmap.recycle() here causes
+            // native SIGABRT crashes ('Error, cannot access an invalid/free'd bitmap here!') if the coroutine
+            // is cancelled (e.g. closing camera) while MLKit is actively processing the frame.
         }
 
     private fun Face.toBoundingBox() = IcueBoundingBox(

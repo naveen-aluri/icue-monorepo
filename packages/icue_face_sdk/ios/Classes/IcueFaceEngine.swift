@@ -149,7 +149,11 @@ internal class IcueFaceEngine {
             try requireThrow(threshold.isFinite && threshold >= -1.0 && threshold <= 1.0, "threshold must be finite between -1 and 1")
 
             let allFaces = try detectFacesInternal(image: image, requireLandmarks: true)
-            let validFaces = allFaces.filter { $0.frame.width >= 40 && $0.frame.height >= 40 }
+            let validFaces = allFaces.filter { face in
+                let cropped = cropAndAlignFace(image: image, face: face)
+                let quality = IcueFaceQualityAssessor.assessQuality(image: cropped, face: face)
+                return quality.isValid
+            }
             let faces = validFaces.isEmpty ? allFaces : validFaces
 
             if mode == "single" && allFaces.count != 1 {
