@@ -258,18 +258,29 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
         section: widget.section,
         period: '',
         students: studentsToUpdate,
-        attendanceMode: 'FACIAL',
+        attendanceMode: isLiveMode ? 'FACIAL_LIVE' : 'FACIAL_PHOTO',
         images: isLiveMode ? null : result.capturedImagePaths,
       );
 
       if (!mounted) return;
       AppUtils.hideLoadingDialog(context);
-      Navigator.push(
+      final res = await Navigator.push<String>(
         context,
         MaterialPageRoute(
           builder: (context) => const AttendanceConfirmationPage(),
         ),
       );
+      if (res == 'ADD_MORE' && mounted) {
+        if (widget.initialMode == AttendanceModeOption.sdkLive) {
+          _startLiveAttendance();
+        } else {
+          _startMultiPhotoAttendance();
+        }
+      } else if (res == 'DISCARD' && mounted) {
+        setState(() {
+          _lastAttendanceResult = null;
+        });
+      }
     } catch (e) {
       if (mounted) {
         AppUtils.hideLoadingDialog(context);
@@ -510,13 +521,24 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
                 ),
                 elevation: 0,
               ),
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                final res = await Navigator.push<String>(
                   context,
                   MaterialPageRoute(
                     builder: (context) => const AttendanceConfirmationPage(),
                   ),
                 );
+                if (res == 'ADD_MORE' && mounted) {
+                  if (widget.initialMode == AttendanceModeOption.sdkLive) {
+                    _startLiveAttendance();
+                  } else {
+                    _startMultiPhotoAttendance();
+                  }
+                } else if (res == 'DISCARD' && mounted) {
+                  setState(() {
+                    _lastAttendanceResult = null;
+                  });
+                }
               },
               icon: const Icon(Icons.rate_review_rounded, size: 18),
               label: const Text(

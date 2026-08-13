@@ -632,7 +632,20 @@ class IcueFaceCameraActivity : ComponentActivity() {
         val isAttendanceMode = session is CameraSession.LiveAttendance ||
             session is CameraSession.MultiPhotoAttendance ||
             session is CameraSession.Tracking
-        if (!isAttendanceMode || frontCamera) return
+
+        if (frontCamera) {
+            val zoomState = cam.cameraInfo.zoomState.value
+            val minZoom = zoomState?.minZoomRatio ?: 1.0f
+            val maxZoom = zoomState?.maxZoomRatio ?: 1.0f
+            val normalZoom = 1.0f.coerceIn(minZoom, maxZoom)
+            cam.cameraControl.setZoomRatio(normalZoom)
+            if (isAttendanceMode) {
+                updateZoomUi(normalZoom, minZoom, maxZoom)
+            }
+            return
+        }
+
+        if (!isAttendanceMode) return
         val defaultZoom = when (val s = session) {
             is CameraSession.LiveAttendance -> s.defaultZoom
             is CameraSession.MultiPhotoAttendance -> s.defaultZoom

@@ -81,6 +81,12 @@ internal class IcueFaceCameraViewController: UIViewController, AVCaptureVideoDat
         }
 
         do {
+            if position == .front {
+                try device.lockForConfiguration()
+                device.videoZoomFactor = 1.0
+                device.unlockForConfiguration()
+            }
+
             let input = try AVCaptureDeviceInput(device: device)
             if session.canAddInput(input) {
                 session.addInput(input)

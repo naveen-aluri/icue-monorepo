@@ -48,6 +48,7 @@ class AppUtils {
 
   //Scaffold message
   static void showSucessMessage(BuildContext context, String msg) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     final snackBar = SnackBar(
       duration: const Duration(seconds: 3),
       backgroundColor: Colors.green,
@@ -62,6 +63,7 @@ class AppUtils {
   }
 
   static void showErrorMessage(BuildContext context, String? msg) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     final snackBar = SnackBar(
       duration: const Duration(seconds: 3),
       backgroundColor: Colors.red,

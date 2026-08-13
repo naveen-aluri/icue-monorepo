@@ -24,6 +24,21 @@ class AttendanceProvider extends ChangeNotifier {
   CreateAttendance? ongoingAttendance;
   String? ongoingAttendanceKey;
 
+  /// Returns the active ongoingAttendanceKey, or falls back to the first key in Hive if available.
+  String? get effectiveAttendanceKey {
+    if (ongoingAttendanceKey != null &&
+        HiveService.createAttendanceBox.containsKey(ongoingAttendanceKey)) {
+      return ongoingAttendanceKey;
+    }
+    final keys = HiveService.createAttendanceBox.keys;
+    if (keys.isNotEmpty) {
+      final key = keys.first.toString();
+      ongoingAttendanceKey = key;
+      return key;
+    }
+    return null;
+  }
+
   /// Standardized key format: yyyy-MM-dd-$classId-$section-$period
   String generateAttendanceKey({
     required int classId,
@@ -58,8 +73,9 @@ class AttendanceProvider extends ChangeNotifier {
 
   Future<void> deleteOngoingAttendance() async {
     try {
-      if (ongoingAttendanceKey != null) {
-        await HiveService.createAttendanceBox.delete(ongoingAttendanceKey);
+      final key = effectiveAttendanceKey;
+      if (key != null) {
+        await HiveService.createAttendanceBox.delete(key);
       }
       ongoingAttendanceKey = null;
       ongoingAttendance = null;
@@ -200,14 +216,12 @@ class AttendanceProvider extends ChangeNotifier {
 
   Future<void> setAttendanceImages(List<String> images) async {
     try {
-      if (ongoingAttendanceKey == null) return;
+      final key = effectiveAttendanceKey;
+      if (key == null) return;
       final box = HiveService.createAttendanceBox;
-      final attendance = box.get(ongoingAttendanceKey);
+      final attendance = box.get(key);
       if (attendance != null) {
-        await box.put(
-          ongoingAttendanceKey!,
-          attendance.copyWith(images: images),
-        );
+        await box.put(key, attendance.copyWith(images: images));
         notifyListeners();
       }
     } catch (error, stack) {
@@ -517,9 +531,10 @@ class AttendanceProvider extends ChangeNotifier {
 
   Future<void> toggleStudentAttendance(AttendanceStudent student) async {
     try {
+      final key = effectiveAttendanceKey;
+      if (key == null) return;
       final box = HiveService.createAttendanceBox;
-      if (ongoingAttendanceKey == null) return;
-      final attendance = box.get(ongoingAttendanceKey);
+      final attendance = box.get(key);
       if (attendance == null) return;
 
       final index = attendance.students.indexWhere((e) => e.id == student.id);
@@ -530,10 +545,7 @@ class AttendanceProvider extends ChangeNotifier {
         updatedStudents[index] = student.copyWith(
           isPresent: !student.isPresent,
         );
-        await box.put(
-          ongoingAttendanceKey!,
-          attendance.copyWith(students: updatedStudents),
-        );
+        await box.put(key, attendance.copyWith(students: updatedStudents));
         notifyListeners();
       }
     } catch (error, stack) {
