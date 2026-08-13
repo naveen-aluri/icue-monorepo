@@ -31,7 +31,7 @@ class StudentProvider extends ChangeNotifier {
   int _currentPage = 1;
   int get currentPage => _currentPage;
 
-  final int _pageSize = 10;
+  final int _pageSize = 100;
   int get pageSize => _pageSize;
 
   int _totalStudents = 0;

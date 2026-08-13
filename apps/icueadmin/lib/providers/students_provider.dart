@@ -77,7 +77,7 @@ class StudentsProvider extends ChangeNotifier {
           'ClassId': classId,
           'Sections': sections,
           'PageNumber': pageNo,
-          'PageSize': 10,
+          'PageSize': 100,
         },
       );
       final data = List<Student>.from(

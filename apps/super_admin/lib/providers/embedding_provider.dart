@@ -105,8 +105,8 @@ class EmbeddingProvider extends ChangeNotifier {
   Future<void> triggerScan() async {
     if (_isScanning) return;
 
-    if (!Platform.isAndroid) {
-      // Mock mode for iOS/Simulator/Other
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      // Dev mock mode for Web/Desktop/Simulators
       _isScanning = true;
       _generatedEmbedding = null;
       _scanStatusText = 'Running in Dev Mock Mode...';
@@ -115,14 +115,17 @@ class EmbeddingProvider extends ChangeNotifier {
       await Future.delayed(const Duration(seconds: 2));
 
       final random = Random();
-      final List<double> mockEmbedding = List.generate(
-        128,
+      final List<double> mockRaw = List.generate(
+        192,
         (_) => (random.nextDouble() * 2) - 1.0,
       );
+      final double sqNorm = mockRaw.fold(0.0, (sum, e) => sum + e * e);
+      final double norm = sqrt(max(sqNorm, 1e-12));
+      final List<double> mockEmbedding = mockRaw.map((e) => e / norm).toList();
 
       _isScanning = false;
       _generatedEmbedding = mockEmbedding;
-      _scanStatusText = 'Biometric signature verified (Mock)!';
+      _scanStatusText = 'Biometric signature verified (192-d Mock)!';
       notifyListeners();
       return;
     }
@@ -140,6 +143,12 @@ class EmbeddingProvider extends ChangeNotifier {
       final embedding = await _faceSdk.extractEmbedding(
         imagePath: _localImagePath!,
       );
+
+      if (embedding.length != 192) {
+        throw Exception(
+          'Model contract error: Expected 192-d embedding vector, received ${embedding.length}',
+        );
+      }
 
       _isScanning = false;
       _generatedEmbedding = embedding;
