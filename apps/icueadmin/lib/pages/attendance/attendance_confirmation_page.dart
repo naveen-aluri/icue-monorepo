@@ -238,8 +238,16 @@ class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
         final students = data?.students ?? [];
         final images =
             data?.images?.where((img) => img.trim().isNotEmpty).toList() ?? [];
-        final isLiveCamera = data?.attendanceMode == 'FACIAL_LIVE';
-        final requiresPhotoUpload = uploadImagesEnabled && !isLiveCamera;
+        final attendanceMode =
+            (data?.attendanceMode ??
+                    (students.isNotEmpty
+                        ? students.first.attendanceMode
+                        : null))
+                ?.toUpperCase();
+        final isLiveCamera = attendanceMode == 'FACIAL_LIVE';
+        final isFacialPhoto =
+            attendanceMode == 'FACIAL_PHOTO' || attendanceMode == 'FACIAL';
+        final requiresPhotoUpload = uploadImagesEnabled && isFacialPhoto;
 
         final presentStudents = students.where((e) => e.isPresent).toList();
         final absentStudents = students.where((e) => !e.isPresent).toList();
@@ -376,7 +384,8 @@ class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (!isLiveCamera &&
-                      (uploadImagesEnabled || images.isNotEmpty))
+                      (images.isNotEmpty ||
+                          (isFacialPhoto && uploadImagesEnabled)))
                     _buildPhotosSection(images),
                   Padding(
                     padding: const EdgeInsets.symmetric(
