@@ -44,6 +44,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -632,7 +633,20 @@ class IcueFaceCameraActivity : ComponentActivity() {
         val isAttendanceMode = session is CameraSession.LiveAttendance ||
             session is CameraSession.MultiPhotoAttendance ||
             session is CameraSession.Tracking
-        if (!isAttendanceMode || frontCamera) return
+
+        if (frontCamera) {
+            val zoomState = cam.cameraInfo.zoomState.value
+            val minZoom = zoomState?.minZoomRatio ?: 1.0f
+            val maxZoom = zoomState?.maxZoomRatio ?: 1.0f
+            val normalZoom = 1.0f.coerceIn(minZoom, maxZoom)
+            cam.cameraControl.setZoomRatio(normalZoom)
+            if (isAttendanceMode) {
+                updateZoomUi(normalZoom, minZoom, maxZoom)
+            }
+            return
+        }
+
+        if (!isAttendanceMode) return
         val defaultZoom = when (val s = session) {
             is CameraSession.LiveAttendance -> s.defaultZoom
             is CameraSession.MultiPhotoAttendance -> s.defaultZoom
@@ -659,7 +673,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
     }
 
     private fun analyze(image: ImageProxy) {
-        if (analysisExecutor.isShutdown || !analysisScope.isActive || !processing.compareAndSet(false, true)) {
+        if (isFinishing || isDestroyed || completed || analysisExecutor.isShutdown || !analysisScope.isActive || !processing.compareAndSet(false, true)) {
             image.close()
             return
         }
@@ -668,23 +682,39 @@ class IcueFaceCameraActivity : ComponentActivity() {
         } catch (error: Throwable) {
             processing.set(false)
             image.close()
-            fail("CAMERA_FRAME_ERROR", error.message ?: "Unable to read camera frame")
+            if (!isFinishing && !isDestroyed && !completed) {
+                fail("CAMERA_FRAME_ERROR", error.message ?: "Unable to read camera frame")
+            }
             return
         }
         image.close()
         try {
-            if (!analysisScope.isActive) {
+            if (isFinishing || isDestroyed || completed || !analysisScope.isActive) {
                 processing.set(false)
                 return
             }
             analysisScope.launch {
                 try {
-                    when (val activeSession = session) {
+                    if (isFinishing || isDestroyed || completed) return@launch
+                    val activeSession = session ?: return@launch
+                    if (activeSession.sdk.isClosed) return@launch
+                    when (activeSession) {
                         is CameraSession.Capture -> processCapture(activeSession, frame)
                         is CameraSession.Tracking -> processTracking(activeSession, frame)
                         is CameraSession.LiveAttendance -> processLiveAttendance(activeSession, frame)
                         is CameraSession.MultiPhotoAttendance -> processMultiPhotoAttendance(activeSession, frame)
-                        null -> Unit
+                    }
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (faceSdkEx: FaceSdkException) {
+                    if (faceSdkEx.code == FaceSdkErrorCode.CLOSED || isFinishing || isDestroyed || completed) {
+                        return@launch
+                    }
+                    val code = faceSdkEx.code.name
+                    fail(code, faceSdkEx.message ?: "Face processing failed")
+                } catch (error: Throwable) {
+                    if (!isFinishing && !isDestroyed && !completed) {
+                        fail("PROCESSING_ERROR", error.message ?: "Face processing failed")
                     }
                 } finally {
                     processing.set(false)
@@ -699,14 +729,25 @@ class IcueFaceCameraActivity : ComponentActivity() {
         activeSession: CameraSession.Capture,
         frame: IcueYuv420Frame,
     ) {
+        if (isFinishing || isDestroyed || completed || activeSession.sdk.isClosed) return
         if (!captureRequested) {
-            val faces = activeSession.sdk.detectFacesInYuv420(frame)
-            showFaces(faces, frame)
+            try {
+                val faces = activeSession.sdk.detectFacesInYuv420(frame)
+                if (isFinishing || isDestroyed || completed) return
+                showFaces(faces, frame)
+            } catch (error: FaceSdkException) {
+                if (error.code == FaceSdkErrorCode.CLOSED || isFinishing || isDestroyed || completed) return
+                fail(error.code.name, error.message ?: "Face detection failed")
+            } catch (error: Throwable) {
+                if (isFinishing || isDestroyed || completed) return
+                fail("CAPTURE_FAILED", error.message ?: "Face detection failed")
+            }
             return
         }
         captureRequested = false
         try {
             val embedding = activeSession.sdk.extractEmbeddingFromYuv420(frame)
+            if (isFinishing || isDestroyed || completed) return
             capturedEmbedding = embedding.copyOf()
             completed = true
             runOnUiThread {
@@ -714,6 +755,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
                 finish()
             }
         } catch (error: FaceSdkException) {
+            if (error.code == FaceSdkErrorCode.CLOSED || isFinishing || isDestroyed || completed) return
             if (error.code == FaceSdkErrorCode.NO_FACE ||
                 error.code == FaceSdkErrorCode.MULTIPLE_FACES
             ) {
@@ -728,6 +770,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
                 fail(error.code.name, error.message ?: "Student enrollment capture failed")
             }
         } catch (error: Throwable) {
+            if (isFinishing || isDestroyed || completed) return
             fail("CAPTURE_FAILED", error.message ?: "Student enrollment capture failed")
         }
     }
@@ -736,6 +779,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
         activeSession: CameraSession.Tracking,
         frame: IcueYuv420Frame,
     ) {
+        if (isFinishing || isDestroyed || completed || activeSession.sdk.isClosed) return
         try {
             val recognitions = if (activeSession.profiles.isEmpty()) {
                 emptyList()
@@ -753,6 +797,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
             } else {
                 recognitions.map { it.boundingBox }
             }
+            if (isFinishing || isDestroyed || completed) return
             val (width, height) = frame.outputDimensions()
             val result = IcueFaceTrackingResult(
                 faces = faces,
@@ -789,6 +834,8 @@ class IcueFaceCameraActivity : ComponentActivity() {
                 activeSession.listener.onFaces(result)
             }
         } catch (error: Throwable) {
+            if (error is FaceSdkException && error.code == FaceSdkErrorCode.CLOSED) return
+            if (isFinishing || isDestroyed || completed) return
             val code = (error as? FaceSdkException)?.code?.name ?: "TRACKING_FAILED"
             fail(code, error.message ?: "Attendance tracking failed")
         }
@@ -798,6 +845,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
         activeSession: CameraSession.LiveAttendance,
         frame: IcueYuv420Frame,
     ) {
+        if (isFinishing || isDestroyed || completed || activeSession.sdk.isClosed) return
         try {
             val recognitions = if (activeSession.roster.isEmpty()) {
                 emptyList()
@@ -810,6 +858,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
                     threshold = activeSession.threshold,
                 )
             }
+            if (isFinishing || isDestroyed || completed) return
             var frameUnrecognized = 0
             recognitions.forEach { recognition ->
                 if (recognition.matched && recognition.personId != null) {
@@ -868,6 +917,8 @@ class IcueFaceCameraActivity : ComponentActivity() {
                 completeAttendanceSession("liveStream", activeSession.roster, activeSession.callback)
             }
         } catch (error: Throwable) {
+            if (error is FaceSdkException && error.code == FaceSdkErrorCode.CLOSED) return
+            if (isFinishing || isDestroyed || completed) return
             val code = (error as? FaceSdkException)?.code?.name ?: "ATTENDANCE_FAILED"
             fail(code, error.message ?: "Live attendance failed")
         }
@@ -877,15 +928,25 @@ class IcueFaceCameraActivity : ComponentActivity() {
         activeSession: CameraSession.MultiPhotoAttendance,
         frame: IcueYuv420Frame,
     ) {
+        if (isFinishing || isDestroyed || completed || activeSession.sdk.isClosed) return
         if (!captureRequested) {
-            val faces = activeSession.sdk.detectFacesInYuv420(frame)
-            val (width, height) = frame.outputDimensions()
-            val totalRoster = activeSession.roster.size
-            val presentCount = markedPresentMap.size
-            runOnUiThread {
-                overlay.update(faces, width, height)
-                statusPill.text = "MULTI-PHOTO • ${photosCapturedCount} PHOTO(S) • $presentCount/$totalRoster PRESENT"
-                statusPill.background = roundedPill(0xCC0B1422.toInt(), 0x6600E5FF.toInt())
+            try {
+                val faces = activeSession.sdk.detectFacesInYuv420(frame)
+                if (isFinishing || isDestroyed || completed) return
+                val (width, height) = frame.outputDimensions()
+                val totalRoster = activeSession.roster.size
+                val presentCount = markedPresentMap.size
+                runOnUiThread {
+                    overlay.update(faces, width, height)
+                    statusPill.text = "MULTI-PHOTO • ${photosCapturedCount} PHOTO(S) • $presentCount/$totalRoster PRESENT"
+                    statusPill.background = roundedPill(0xCC0B1422.toInt(), 0x6600E5FF.toInt())
+                }
+            } catch (error: FaceSdkException) {
+                if (error.code == FaceSdkErrorCode.CLOSED || isFinishing || isDestroyed || completed) return
+                fail(error.code.name, error.message ?: "Face detection failed")
+            } catch (error: Throwable) {
+                if (isFinishing || isDestroyed || completed) return
+                fail("MULTI_PHOTO_FAILED", error.message ?: "Face detection failed")
             }
             return
         }
@@ -902,6 +963,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
                     threshold = activeSession.threshold,
                 )
             }
+            if (isFinishing || isDestroyed || completed) return
             var frameUnrecognized = 0
             recognitions.forEach { recognition ->
                 if (recognition.matched && recognition.personId != null) {
@@ -962,7 +1024,10 @@ class IcueFaceCameraActivity : ComponentActivity() {
                 completeAttendanceSession("multiPhoto", activeSession.roster, activeSession.callback)
             }
         } catch (error: Throwable) {
-            fail("MULTI_PHOTO_FAILED", error.message ?: "Multi-photo group capture failed")
+            if (error is FaceSdkException && error.code == FaceSdkErrorCode.CLOSED) return
+            if (isFinishing || isDestroyed || completed) return
+            val code = (error as? FaceSdkException)?.code?.name ?: "MULTI_PHOTO_FAILED"
+            fail(code, error.message ?: "Multi-photo group capture failed")
         }
     }
 

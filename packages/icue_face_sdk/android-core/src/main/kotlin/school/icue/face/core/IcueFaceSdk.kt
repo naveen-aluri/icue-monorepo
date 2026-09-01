@@ -31,6 +31,9 @@ class IcueFaceSdk(
     @Volatile
     private var closed = false
 
+    val isClosed: Boolean
+        get() = closed
+
     suspend fun extractEmbedding(bitmap: Bitmap): FloatArray = operation {
         extractEmbeddingInternal(bitmap)
     }

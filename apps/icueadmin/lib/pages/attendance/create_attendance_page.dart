@@ -290,13 +290,16 @@ class _CreateAttendancePageState extends State<CreateAttendancePage> {
                   minimumSize: const Size.fromHeight(48),
                   shape: corner,
                 ),
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  final res = await Navigator.push<String>(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const AttendanceConfirmationPage(),
                     ),
                   );
+                  if (res == 'DISCARD' && mounted) {
+                    Navigator.of(context).pop();
+                  }
                 },
                 child: const Text(
                   'Continue',

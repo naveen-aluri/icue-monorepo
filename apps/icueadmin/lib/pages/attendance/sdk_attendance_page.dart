@@ -9,6 +9,7 @@ import '../../models/student.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/students_provider.dart';
 import '../../services/analytics_service.dart';
+import '../../services/hive_service.dart';
 import '../../services/injectable.dart';
 import '../../utils/app_utils.dart';
 import 'attendance_confirmation_page.dart';
@@ -233,14 +234,24 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
 
     try {
       final attendanceProvider = context.read<AttendanceProvider>();
-      final presentIds = result.present.map((e) => e.personId).toSet();
+      final key = attendanceProvider.effectiveAttendanceKey;
+      final existingAttendance =
+          key != null ? HiveService.createAttendanceBox.get(key) : null;
+      final existingPresentIds = existingAttendance?.students
+              .where((s) => s.isPresent)
+              .map((s) => s.id)
+              .toSet() ??
+          <int>{};
+
+      final newlyPresentIds = result.present.map((e) => e.personId).toSet();
 
       final isLiveMode =
           widget.initialMode == AttendanceModeOption.sdkLive ||
           result.mode == AttendanceMode.liveStream;
 
       final studentsToUpdate = _studentList.map((student) {
-        final isPresent = presentIds.contains(student.id.toString());
+        final isPresent = existingPresentIds.contains(student.id) ||
+            newlyPresentIds.contains(student.id.toString());
         return AttendanceStudent(
           id: student.id,
           name: student.name,
@@ -258,18 +269,29 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
         section: widget.section,
         period: '',
         students: studentsToUpdate,
-        attendanceMode: 'FACIAL',
+        attendanceMode: isLiveMode ? 'FACIAL_LIVE' : 'FACIAL_PHOTO',
         images: isLiveMode ? null : result.capturedImagePaths,
       );
 
       if (!mounted) return;
       AppUtils.hideLoadingDialog(context);
-      Navigator.push(
+      final res = await Navigator.push<String>(
         context,
         MaterialPageRoute(
           builder: (context) => const AttendanceConfirmationPage(),
         ),
       );
+      if (res == 'ADD_MORE' && mounted) {
+        if (widget.initialMode == AttendanceModeOption.sdkLive) {
+          _startLiveAttendance();
+        } else {
+          _startMultiPhotoAttendance();
+        }
+      } else if (res == 'DISCARD' && mounted) {
+        setState(() {
+          _lastAttendanceResult = null;
+        });
+      }
     } catch (e) {
       if (mounted) {
         AppUtils.hideLoadingDialog(context);
@@ -510,13 +532,24 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
                 ),
                 elevation: 0,
               ),
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                final res = await Navigator.push<String>(
                   context,
                   MaterialPageRoute(
                     builder: (context) => const AttendanceConfirmationPage(),
                   ),
                 );
+                if (res == 'ADD_MORE' && mounted) {
+                  if (widget.initialMode == AttendanceModeOption.sdkLive) {
+                    _startLiveAttendance();
+                  } else {
+                    _startMultiPhotoAttendance();
+                  }
+                } else if (res == 'DISCARD' && mounted) {
+                  setState(() {
+                    _lastAttendanceResult = null;
+                  });
+                }
               },
               icon: const Icon(Icons.rate_review_rounded, size: 18),
               label: const Text(

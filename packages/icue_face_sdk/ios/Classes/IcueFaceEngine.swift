@@ -69,10 +69,16 @@ internal class IcueFaceEngine {
     static let INPUT_SIZE = 112
     static let EMBEDDING_SIZE = 192
 
-    static let CANONICAL_LEFT_EYE_X: CGFloat = 38.29
-    static let CANONICAL_LEFT_EYE_Y: CGFloat = 51.69
-    static let CANONICAL_RIGHT_EYE_X: CGFloat = 73.53
-    static let CANONICAL_RIGHT_EYE_Y: CGFloat = 51.69
+    static let CANONICAL_LEFT_EYE_X: CGFloat = 38.2946
+    static let CANONICAL_LEFT_EYE_Y: CGFloat = 51.6963
+    static let CANONICAL_RIGHT_EYE_X: CGFloat = 73.5318
+    static let CANONICAL_RIGHT_EYE_Y: CGFloat = 51.5014
+    static let CANONICAL_NOSE_X: CGFloat = 56.0252
+    static let CANONICAL_NOSE_Y: CGFloat = 71.7366
+    static let CANONICAL_LEFT_MOUTH_X: CGFloat = 41.5493
+    static let CANONICAL_LEFT_MOUTH_Y: CGFloat = 92.3655
+    static let CANONICAL_RIGHT_MOUTH_X: CGFloat = 70.7299
+    static let CANONICAL_RIGHT_MOUTH_Y: CGFloat = 92.2041
 
     private let queue = DispatchQueue(label: "school.icue.face.engine", qos: .userInitiated)
     private var interpreter: Interpreter?

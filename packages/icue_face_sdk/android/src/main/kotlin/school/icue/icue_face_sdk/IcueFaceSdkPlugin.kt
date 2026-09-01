@@ -284,6 +284,9 @@ class IcueFaceSdkPlugin :
             ?: return result.error("NO_ACTIVITY", "A foreground Android activity is required", null)
         val currentSdk = sdk
             ?: return result.error("NOT_INITIALIZED", "SDK is not initialized", null)
+        if (currentSdk.isClosed) {
+            return result.error("CLOSED", "SDK is closed", null)
+        }
         try {
             IcueFaceCamera.openCapture(
                 hostActivity,
@@ -313,6 +316,9 @@ class IcueFaceSdkPlugin :
             ?: return result.error("NO_ACTIVITY", "A foreground Android activity is required", null)
         val currentSdk = sdk
             ?: return result.error("NOT_INITIALIZED", "SDK is not initialized", null)
+        if (currentSdk.isClosed) {
+            return result.error("CLOSED", "SDK is closed", null)
+        }
         val profiles = call.profiles()
         val options = call.recognitionOptions(RecognitionMode.MULTI)
         val showMatchingPercentage = call.argument<Boolean>("showMatchingPercentage") ?: true
@@ -363,6 +369,9 @@ class IcueFaceSdkPlugin :
             ?: return result.error("NO_ACTIVITY", "A foreground Android activity is required", null)
         val currentSdk = sdk
             ?: return result.error("NOT_INITIALIZED", "SDK is not initialized", null)
+        if (currentSdk.isClosed) {
+            return result.error("CLOSED", "SDK is closed", null)
+        }
         val roster = call.roster()
         val options = call.recognitionOptions(RecognitionMode.MULTI)
         val autoFinish = call.argument<Boolean>("autoFinish") ?: false
@@ -409,6 +418,9 @@ class IcueFaceSdkPlugin :
             ?: return result.error("NO_ACTIVITY", "A foreground Android activity is required", null)
         val currentSdk = sdk
             ?: return result.error("NOT_INITIALIZED", "SDK is not initialized", null)
+        if (currentSdk.isClosed) {
+            return result.error("CLOSED", "SDK is closed", null)
+        }
         val roster = call.roster()
         val options = call.recognitionOptions(RecognitionMode.MULTI)
         val autoFinish = call.argument<Boolean>("autoFinish") ?: false
@@ -537,11 +549,18 @@ class IcueFaceSdkPlugin :
     ) {
         val currentSdk = sdk
             ?: return result.error("NOT_INITIALIZED", "SDK is not initialized", null)
+        if (currentSdk.isClosed) {
+            return result.error("CLOSED", "SDK is closed", null)
+        }
         if (isFrame && !frameInFlight.compareAndSet(false, true)) {
             return result.error("FRAME_BUSY", "A camera frame is already being processed", null)
         }
         scope.launch {
             try {
+                if (currentSdk.isClosed) {
+                    result.error("CLOSED", "SDK is closed", null)
+                    return@launch
+                }
                 result.success(block(currentSdk))
             } catch (error: CancellationException) {
                 throw error
