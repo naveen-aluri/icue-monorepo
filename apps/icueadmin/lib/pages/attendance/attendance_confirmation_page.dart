@@ -26,6 +26,7 @@ class AttendanceConfirmationPage extends StatefulWidget {
 class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
     with SingleTickerProviderStateMixin {
   TabController? _tabController;
+  bool _hasAutoSwitchedTab = false;
 
   @override
   void initState() {
@@ -149,18 +150,18 @@ class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
-          'Discard Attendance Data?',
+          'Attendance in Progress',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         content: const Text(
-          'Are you sure you want to discard attendance data?',
+          'Would you like to go back to add more attendance, discard this session, or stay on this screen?',
           style: TextStyle(fontSize: 14),
         ),
         actions: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ElevatedButton(
+              ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -170,13 +171,14 @@ class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
                 onPressed: () {
                   Navigator.of(dialogContext).pop('ADD_MORE');
                 },
-                child: const Text(
-                  'Add more attendance',
+                icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                label: const Text(
+                  'Add More Attendance',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(height: 8),
-              OutlinedButton(
+              OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red,
                   side: BorderSide(color: Colors.red.shade300),
@@ -188,8 +190,9 @@ class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
                 onPressed: () {
                   Navigator.of(dialogContext).pop('DISCARD');
                 },
-                child: const Text(
-                  'Discard',
+                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                label: const Text(
+                  'Discard Attendance',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -198,7 +201,7 @@ class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
                 onPressed: () {
                   Navigator.of(dialogContext).pop('CLOSE');
                 },
-                child: const Text('Close'),
+                child: const Text('Cancel'),
               ),
             ],
           ),
@@ -252,12 +255,14 @@ class _AttendanceConfirmationPageState extends State<AttendanceConfirmationPage>
         final presentStudents = students.where((e) => e.isPresent).toList();
         final absentStudents = students.where((e) => !e.isPresent).toList();
 
-        if (absentStudents.isEmpty &&
-            _tabController != null &&
-            _tabController!.index == 0) {
+        if (!_hasAutoSwitchedTab &&
+            absentStudents.isEmpty &&
+            presentStudents.isNotEmpty &&
+            _tabController != null) {
+          _hasAutoSwitchedTab = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && _tabController!.index == 0) {
-              _tabController!.animateTo(1);
+            if (mounted && _tabController?.index == 0) {
+              _tabController?.animateTo(1);
             }
           });
         }

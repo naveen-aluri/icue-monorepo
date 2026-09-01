@@ -66,6 +66,7 @@ class StudentsProvider extends ChangeNotifier {
   }) async {
     if (pageNo == 1) {
       students.clear();
+      attendanceStudents.clear();
       hasNextPage = true;
       studentsLoading = true;
     }
@@ -85,9 +86,11 @@ class StudentsProvider extends ChangeNotifier {
           (x) => Student.fromJson(x as Map<String, dynamic>),
         ),
       );
-      final newStudents = data[0].data;
+      final newStudents = data.isNotEmpty ? data[0].data : <StudentData>[];
       students.addAll(newStudents);
-      metaData = data[0].metadata.isNotEmpty ? data[0].metadata[0] : metaData;
+      metaData = data.isNotEmpty && data[0].metadata.isNotEmpty
+          ? data[0].metadata[0]
+          : metaData;
       hasNextPage = (metaData?.total ?? 0) > students.length;
 
       if (forAttendance) {
@@ -104,7 +107,7 @@ class StudentsProvider extends ChangeNotifier {
           );
           attendanceStudents.addAll(filtered);
         } else {
-          attendanceStudents = List.from(students);
+          attendanceStudents.addAll(newStudents);
         }
       }
     } catch (error, stack) {

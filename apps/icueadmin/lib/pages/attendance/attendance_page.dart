@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
+import '../../dialogs/attendance_mode_dialog.dart';
 import '../../dialogs/resume_attendance_dialog.dart';
 import '../../models/assigned_entities.dart';
 import '../../models/create_attendance.dart';
@@ -10,6 +11,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/common_provider.dart';
 import '../../widgets/no_data_widget.dart';
 import 'create_attendance_page.dart';
+import 'sdk_attendance_page.dart';
 import 'sections_page.dart';
 
 class AttendancePage extends StatefulWidget {
@@ -180,15 +182,40 @@ class _AttendancePageState extends State<AttendancePage> {
                   ),
                   onPressed: () {
                     if (targetClass != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CreateAttendancePage(
-                            standard: targetClass,
-                            section: ongoing.section,
+                      final mode = ongoing.attendanceMode?.toUpperCase();
+                      if (mode == 'FACIAL_LIVE') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SdkAttendancePage(
+                              standard: targetClass,
+                              section: ongoing.section,
+                              initialMode: AttendanceModeOption.sdkLive,
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      } else if (mode == 'FACIAL_PHOTO') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SdkAttendancePage(
+                              standard: targetClass,
+                              section: ongoing.section,
+                              initialMode: AttendanceModeOption.sdkPhoto,
+                            ),
+                          ),
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CreateAttendancePage(
+                              standard: targetClass,
+                              section: ongoing.section,
+                            ),
+                          ),
+                        );
+                      }
                     }
                   },
                   icon: const Icon(Icons.arrow_forward_rounded, size: 18),
@@ -278,6 +305,11 @@ class _AttendancePageState extends State<AttendancePage> {
                                               SectionsPage(standard: item),
                                         ),
                                       );
+                                      if (mounted) {
+                                        context
+                                            .read<AttendanceProvider>()
+                                            .getOngoingAttendance();
+                                      }
                                     }
                                   }
                                 },

@@ -9,6 +9,7 @@ import '../../models/student.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/students_provider.dart';
 import '../../services/analytics_service.dart';
+import '../../services/hive_service.dart';
 import '../../services/injectable.dart';
 import '../../utils/app_utils.dart';
 import 'attendance_confirmation_page.dart';
@@ -233,14 +234,24 @@ class _SdkAttendancePageState extends State<SdkAttendancePage> {
 
     try {
       final attendanceProvider = context.read<AttendanceProvider>();
-      final presentIds = result.present.map((e) => e.personId).toSet();
+      final key = attendanceProvider.effectiveAttendanceKey;
+      final existingAttendance =
+          key != null ? HiveService.createAttendanceBox.get(key) : null;
+      final existingPresentIds = existingAttendance?.students
+              .where((s) => s.isPresent)
+              .map((s) => s.id)
+              .toSet() ??
+          <int>{};
+
+      final newlyPresentIds = result.present.map((e) => e.personId).toSet();
 
       final isLiveMode =
           widget.initialMode == AttendanceModeOption.sdkLive ||
           result.mode == AttendanceMode.liveStream;
 
       final studentsToUpdate = _studentList.map((student) {
-        final isPresent = presentIds.contains(student.id.toString());
+        final isPresent = existingPresentIds.contains(student.id) ||
+            newlyPresentIds.contains(student.id.toString());
         return AttendanceStudent(
           id: student.id,
           name: student.name,

@@ -8,7 +8,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
-import '../../dialogs/attendance_mode_dialog.dart';
 import '../../models/assigned_entities.dart';
 import '../../models/create_attendance.dart';
 import '../../providers/attendance_provider.dart';
@@ -19,7 +18,6 @@ import '../../services/injectable.dart';
 import '../../widgets/attendance_card.dart';
 import '../../widgets/no_data_widget.dart';
 import 'attendance_confirmation_page.dart';
-import 'sdk_attendance_page.dart';
 
 class CreateAttendancePage extends StatefulWidget {
   const CreateAttendancePage({
@@ -299,28 +297,8 @@ class _CreateAttendancePageState extends State<CreateAttendancePage> {
                       builder: (context) => const AttendanceConfirmationPage(),
                     ),
                   );
-                  if (res == 'ADD_MORE' && mounted) {
-                    final attendanceProvider = context
-                        .read<AttendanceProvider>();
-                    final key = attendanceProvider.effectiveAttendanceKey;
-                    final data = key != null
-                        ? HiveService.createAttendanceBox.get(key)
-                        : null;
-                    final isLive = data?.attendanceMode == 'FACIAL_LIVE';
-                    final mode = isLive
-                        ? AttendanceModeOption.sdkLive
-                        : AttendanceModeOption.sdkPhoto;
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SdkAttendancePage(
-                          standard: widget.standard,
-                          section: widget.section,
-                          initialMode: mode,
-                        ),
-                      ),
-                    );
+                  if (res == 'DISCARD' && mounted) {
+                    Navigator.of(context).pop();
                   }
                 },
                 child: const Text(

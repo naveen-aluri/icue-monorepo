@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../pages/attendance/create_attendance_page.dart';
+import '../pages/attendance/sdk_attendance_page.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/auth_provider.dart';
+import 'attendance_mode_dialog.dart';
 
 class ResumeAttendanceDialog extends StatefulWidget {
   const ResumeAttendanceDialog({super.key});
@@ -42,15 +44,40 @@ class _ResumeAttendanceDialogState extends State<ResumeAttendanceDialog> {
               }
 
               Navigator.of(context, rootNavigator: true).pop();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CreateAttendancePage(
-                    standard: targetClass,
-                    section: ongoingAttendance.section,
+              final mode = ongoingAttendance.attendanceMode?.toUpperCase();
+              if (mode == 'FACIAL_LIVE') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SdkAttendancePage(
+                      standard: targetClass,
+                      section: ongoingAttendance.section,
+                      initialMode: AttendanceModeOption.sdkLive,
+                    ),
                   ),
-                ),
-              );
+                );
+              } else if (mode == 'FACIAL_PHOTO') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SdkAttendancePage(
+                      standard: targetClass,
+                      section: ongoingAttendance.section,
+                      initialMode: AttendanceModeOption.sdkPhoto,
+                    ),
+                  ),
+                );
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CreateAttendancePage(
+                      standard: targetClass,
+                      section: ongoingAttendance.section,
+                    ),
+                  ),
+                );
+              }
             },
             child: const Text('Continue'),
           ),
