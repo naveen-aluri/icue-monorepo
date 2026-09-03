@@ -26,6 +26,7 @@ const Map<String, String> _iconsMap = {
   'layout.vehicles': 'assets/dashboard/reports.png',
   'layout.logbook': 'assets/dashboard/log-book.png',
   'layout.dropboarding': 'assets/dashboard/student-drop.png',
+  'layout.fm_mycleaningtasks': 'assets/dashboard/log-book.png',
 };
 
 class DashboardPage extends StatefulWidget {
