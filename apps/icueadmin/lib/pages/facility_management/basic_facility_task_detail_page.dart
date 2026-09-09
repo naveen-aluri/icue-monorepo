@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/cleaning_task_response.dart';
 import '../../models/facility_task.dart';
 import '../../models/facility_task_status.dart';
 import '../../providers/common_provider.dart';
@@ -36,32 +34,20 @@ class BasicFacilityTaskDetailPage extends StatefulWidget {
 class _BasicFacilityTaskDetailPageState
     extends State<BasicFacilityTaskDetailPage>
     with WidgetsBindingObserver {
+  FacilityTask? _activeFacilityTask;
+  List<FacilityTask> _availableTasks = [];
+  CameraController? _cameraController;
+  String? _errorMessage;
+  String? _facilityName;
+  String? _facilityPath;
   bool _isLoading = true;
   bool _isSubmitting = false;
   bool _isTakingPhoto = false;
-  bool _showShutterFlash = false;
   bool _isTorchOn = false;
-  String? _errorMessage;
-
-  FacilityTask? _activeFacilityTask;
-  CleaningTask? _cleaningTask;
-  List<FacilityTask> _availableTasks = [];
-  String? _facilityName;
-
-  CameraController? _cameraController;
-  final List<XFile> _selectedPhotos = [];
-  Map<String, String> _remotePhotoUrls = {};
   final TextEditingController _remarksController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadTaskData();
-      _initCamera();
-    });
-  }
+  final Map<String, String> _remotePhotoUrls = {};
+  final List<XFile> _selectedPhotos = [];
+  bool _showShutterFlash = false;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -81,6 +67,26 @@ class _BasicFacilityTaskDetailPageState
     _cameraController?.dispose();
     _remarksController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadTaskData();
+      _initCamera();
+    });
+  }
+
+  String get _displayFacilityPath {
+    final raw = _facilityPath;
+    if (raw == null || raw.trim().isEmpty) return '';
+    return raw
+        .split('||')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .join(' • ');
   }
 
   int get _maxPhotos {
@@ -134,69 +140,63 @@ class _BasicFacilityTaskDetailPageState
     final prov = context.read<FacilityProvider>();
 
     try {
-      if (widget.taskId != null && widget.taskId! > 0) {
-        await prov.getCleaningTaskDetails(widget.taskId!);
-        final task = prov.cleaningTaskDetails;
-        if (task != null) {
-          _cleaningTask = task;
-          _facilityName = task.scheduleName ?? 'Cleaning Area';
-          await _loadRemotePhotosIfAny(task);
-        } else {
-          _errorMessage = prov.errorMessage ?? 'Could not find task details.';
-        }
-      } else if (widget.qrCode != null && widget.qrCode!.isNotEmpty) {
-        final numericId = int.tryParse(widget.qrCode!.trim());
-        if (numericId != null && numericId > 0) {
-          await prov.getCleaningTaskDetails(numericId);
-          final directTask = prov.cleaningTaskDetails;
-          if (directTask != null) {
-            _cleaningTask = directTask;
-            _facilityName = directTask.scheduleName ?? 'Cleaning Area';
-            await _loadRemotePhotosIfAny(directTask);
-            if (mounted) setState(() => _isLoading = false);
-            return;
-          }
-        }
+      final shouldFetch =
+          prov.cleaningTasksQr.isEmpty ||
+          (widget.qrCode != null &&
+              widget.qrCode!.isNotEmpty &&
+              prov.currentFacilityQr?.qrCode.toLowerCase() !=
+                  widget.qrCode!.trim().toLowerCase());
 
+      if (shouldFetch && widget.qrCode != null && widget.qrCode!.isNotEmpty) {
         await prov.getCleaningTasksByQR(
           DateTime.now(),
           widget.qrCode!.trim(),
           isBasicFacilityMgmt: true,
         );
-        final tasks = prov.cleaningTasksQr;
-        _availableTasks = tasks;
+      }
 
-        if (tasks.isNotEmpty) {
-          final taskToSelect = tasks.firstWhere(
-            (t) => t.taskStatus == FacilityTaskStatus.inProgress,
-            orElse: () => tasks.firstWhere(
-              (t) => t.taskStatus == FacilityTaskStatus.pending,
-              orElse: () => tasks.first,
-            ),
+      final tasks = prov.cleaningTasksQr.isNotEmpty
+          ? prov.cleaningTasksQr
+          : prov.cleaningTasks;
+      _availableTasks = tasks;
+
+      if (tasks.isNotEmpty) {
+        FacilityTask? taskToSelect;
+        if (widget.taskId != null) {
+          taskToSelect = tasks.cast<FacilityTask?>().firstWhere(
+            (t) => t?.id == widget.taskId,
+            orElse: () => null,
           );
+        }
 
+        taskToSelect ??= tasks.cast<FacilityTask?>().firstWhere(
+          (t) => t?.taskStatus == FacilityTaskStatus.inProgress,
+          orElse: () => tasks.cast<FacilityTask?>().firstWhere(
+            (t) => t?.taskStatus == FacilityTaskStatus.pending,
+            orElse: () => tasks.first,
+          ),
+        );
+
+        if (taskToSelect != null) {
           _activeFacilityTask = taskToSelect;
-          _facilityName = taskToSelect.scheduleName ?? 'Cleaning Area';
+          _facilityName =
+              taskToSelect.scheduleName ??
+              prov.currentFacilityQr?.name ??
+              'Cleaning Area';
+          _facilityPath =
+              prov.currentFacilityQr?.facilityPath ?? taskToSelect.facilityPath;
 
-          if (taskToSelect.id != null) {
-            // Auto-start task if it is still pending
-            if (taskToSelect.taskStatus == FacilityTaskStatus.pending) {
-              await prov.startCleaningTask(taskToSelect.id!);
-            }
-            await prov.getCleaningTaskDetails(taskToSelect.id!);
-            final details = prov.cleaningTaskDetails;
-            if (details != null) {
-              _cleaningTask = details;
-              await _loadRemotePhotosIfAny(details);
-            }
+          // Auto-start task if it is still pending
+          if (taskToSelect.taskStatus == FacilityTaskStatus.pending &&
+              taskToSelect.id != null) {
+            await prov.startCleaningTask(taskToSelect.id!);
+            _activeFacilityTask = taskToSelect.copyWith(status: 'IN_PROGRESS');
           }
-        } else {
-          _errorMessage =
-              prov.errorMessage ??
-              'No cleaning tasks scheduled for this location today.';
         }
       } else {
-        _errorMessage = 'Invalid QR code or task reference.';
+        _errorMessage =
+            prov.errorMessage ??
+            'No cleaning tasks scheduled for this location today.';
       }
     } catch (e) {
       _errorMessage = 'Failed to load task details. Please check connection.';
@@ -207,53 +207,17 @@ class _BasicFacilityTaskDetailPageState
     }
   }
 
-  Future<void> _loadRemotePhotosIfAny(CleaningTask task) async {
-    final docIds = <String>[];
-    for (var p in task.beforePhotos ?? []) {
-      if (p is Map && p['DocumentId'] != null) {
-        docIds.add(p['DocumentId'].toString());
-      } else if (p is String && p.isNotEmpty) {
-        docIds.add(p);
-      }
-    }
-    for (var p in task.afterPhotos ?? []) {
-      if (p is Map && p['DocumentId'] != null) {
-        docIds.add(p['DocumentId'].toString());
-      } else if (p is String && p.isNotEmpty) {
-        docIds.add(p);
-      }
-    }
-
-    if (docIds.isNotEmpty) {
-      final prov = context.read<FacilityProvider>();
-      final urls = await prov.getImagesByDocumentIds(documentIds: docIds);
-      if (mounted) {
-        setState(() {
-          _remotePhotoUrls = urls;
-        });
-      }
-    }
-  }
-
-  Future<void> _selectTask(FacilityTask task) async {
-    if (task.id == null || task.id == _cleaningTask?.id) return;
+  void _selectTask(FacilityTask task) {
+    if (task.id == null || task.id == _activeFacilityTask?.id) return;
+    final prov = context.read<FacilityProvider>();
     setState(() {
-      _isLoading = true;
       _activeFacilityTask = task;
+      _facilityName =
+          task.scheduleName ?? prov.currentFacilityQr?.name ?? 'Cleaning Area';
+      _facilityPath = prov.currentFacilityQr?.facilityPath ?? task.facilityPath;
       _selectedPhotos.clear();
       _remotePhotoUrls.clear();
     });
-
-    final prov = context.read<FacilityProvider>();
-    await prov.getCleaningTaskDetails(task.id!);
-    final details = prov.cleaningTaskDetails;
-    if (details != null) {
-      _cleaningTask = details;
-      await _loadRemotePhotosIfAny(details);
-    }
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
   }
 
   Future<void> _capturePhoto() async {
@@ -389,80 +353,8 @@ class _BasicFacilityTaskDetailPageState
     );
   }
 
-  void _previewRemoteImage(String url) {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              constraints: const BoxConstraints(maxHeight: 520, maxWidth: 520),
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    color: Colors.black87,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Submitted Cleaning Photo',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: () => Navigator.pop(ctx),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Flexible(
-                    child: InteractiveViewer(
-                      child: CachedNetworkImage(
-                        imageUrl: url,
-                        fit: BoxFit.contain,
-                        placeholder: (_, _) => const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(32),
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        errorWidget: (_, _, _) => const Icon(
-                          Icons.broken_image,
-                          color: Colors.white70,
-                          size: 48,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _submitCleaning() async {
-    final taskId = _cleaningTask?.id ?? _activeFacilityTask?.id;
+    final taskId = _activeFacilityTask?.id;
     if (taskId == null) {
       AppUtils.showErrorMessage(context, 'No valid task selected.');
       return;
@@ -483,9 +375,7 @@ class _BasicFacilityTaskDetailPageState
       AppUtils.showLoadingDialog(context, 'Submitting cleaning photos...');
 
       final currentStatus =
-          _cleaningTask?.taskStatus ??
-          _activeFacilityTask?.taskStatus ??
-          FacilityTaskStatus.pending;
+          _activeFacilityTask?.taskStatus ?? FacilityTaskStatus.pending;
 
       if (currentStatus == FacilityTaskStatus.pending) {
         await prov.startCleaningTask(taskId, context: context);
@@ -507,16 +397,7 @@ class _BasicFacilityTaskDetailPageState
         return;
       }
 
-      final checklistResults = (_cleaningTask?.checklistSnapshot ?? [])
-          .map(
-            (s) => {
-              'ItemId': s.itemId,
-              'Name': s.name,
-              'Completed': true,
-              'Remarks': '',
-            },
-          )
-          .toList();
+      final checklistResults = <Map<String, dynamic>>[];
 
       final remarks = _remarksController.text.trim().isNotEmpty
           ? _remarksController.text.trim()
@@ -534,8 +415,12 @@ class _BasicFacilityTaskDetailPageState
       if (mounted) {
         AppUtils.hideLoadingDialog(context);
         if (success) {
+          setState(() {
+            _activeFacilityTask = _activeFacilityTask?.copyWith(
+              status: 'COMPLETED',
+            );
+          });
           HapticFeedback.heavyImpact();
-          _showCompletionSuccessDialog();
         }
       }
     } catch (e) {
@@ -548,203 +433,6 @@ class _BasicFacilityTaskDetailPageState
         setState(() => _isSubmitting = false);
       }
     }
-  }
-
-  void _showCompletionSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: const BoxDecoration(
-                color: Color(0xFFDCFCE7),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                color: Color(0xFF16A34A),
-                size: 56,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Cleaning Submitted!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF16A34A),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _facilityName ?? 'Task completed successfully',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${_selectedPhotos.length} photo(s) submitted for proof.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF16A34A),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                icon: const Icon(Icons.qr_code_scanner),
-                label: const Text(
-                  'Scan Next QR Code',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  context.pushReplacement('/facility-qr-scanner?mode=basic');
-                },
-              ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  context.go('/');
-                },
-                child: const Text(
-                  'Back to Home',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(color: Colors.white),
-              SizedBox(height: 16),
-              Text(
-                'Finding cleaning task...',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_errorMessage != null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Clean Location'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go('/'),
-          ),
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.info_outline,
-                    color: Colors.red.shade600,
-                    size: 48,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: _loadTaskData,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Try Again'),
-                    ),
-                    const SizedBox(width: 12),
-                    FilledButton.icon(
-                      onPressed: () => context.pushReplacement(
-                        '/facility-qr-scanner?mode=basic',
-                      ),
-                      icon: const Icon(Icons.qr_code_scanner),
-                      label: const Text('Scan QR'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    final isCompleted =
-        (_cleaningTask?.taskStatus == FacilityTaskStatus.completed) ||
-        (_activeFacilityTask?.taskStatus == FacilityTaskStatus.completed);
-
-    if (isCompleted) {
-      return _buildCompletedScreen();
-    }
-
-    // Main Camera Viewport + Natural Bottom Panel
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Column(
-        children: [
-          // 1. TOP LIVE CAMERA VIEWPORT (Fills available space)
-          Expanded(child: _buildCameraViewport()),
-
-          // 2. BOTTOM COMPACT TASK INFO & SUBMIT BAR (Natural height, no empty gaps)
-          _buildBottomDataPanel(),
-        ],
-      ),
-    );
   }
 
   /// Camera Viewport with Top Navigation Overlay & Bottom Shutter Controls
@@ -853,7 +541,7 @@ class _BasicFacilityTaskDetailPageState
                       margin: const EdgeInsets.symmetric(horizontal: 10),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
-                        vertical: 10,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.65),
@@ -876,15 +564,33 @@ class _BasicFacilityTaskDetailPageState
                           ),
                           const SizedBox(width: 8),
                           Flexible(
-                            child: Text(
-                              _facilityName ?? 'Cleaning Area',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.3,
-                              ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _facilityName ?? 'Cleaning Area',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                                if (_displayFacilityPath.isNotEmpty) ...[
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    _displayFacilityPath,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                         ],
@@ -1081,11 +787,8 @@ class _BasicFacilityTaskDetailPageState
 
   /// Natural-Height Bottom Panel: Zero awkward blank space
   Widget _buildBottomDataPanel() {
-    final startTime =
-        _cleaningTask?.scheduledStartTime ??
-        _activeFacilityTask?.scheduledStartTime;
-    final cleanerName =
-        _cleaningTask?.assignedUser ?? _activeFacilityTask?.assignedUser;
+    final startTime = _activeFacilityTask?.scheduledStartTime;
+    final cleanerName = _activeFacilityTask?.assignedUser;
     final count = _selectedPhotos.length;
     final limit = _maxPhotos;
 
@@ -1116,6 +819,32 @@ class _BasicFacilityTaskDetailPageState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (_displayFacilityPath.isNotEmpty) ...[
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.apartment_rounded,
+                                size: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  _displayFacilityPath,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey.shade600,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                        ],
                         Text(
                           _facilityName ?? 'Cleaning Task',
                           style: const TextStyle(
@@ -1151,35 +880,29 @@ class _BasicFacilityTaskDetailPageState
                     ),
                     decoration: BoxDecoration(
                       color:
-                          (_cleaningTask?.taskStatus ??
-                                  _activeFacilityTask?.taskStatus) ==
+                          _activeFacilityTask?.taskStatus ==
                               FacilityTaskStatus.completed
                           ? const Color(0xFFDCFCE7)
-                          : (_cleaningTask?.taskStatus ??
-                                    _activeFacilityTask?.taskStatus) ==
+                          : _activeFacilityTask?.taskStatus ==
                                 FacilityTaskStatus.pending
                           ? const Color(0xFFFEF3C7)
                           : const Color(0xFFDBEAFE),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      (_cleaningTask?.taskStatus ??
-                                  _activeFacilityTask?.taskStatus) ==
+                      _activeFacilityTask?.taskStatus ==
                               FacilityTaskStatus.completed
                           ? 'Completed'
-                          : (_cleaningTask?.taskStatus ??
-                                    _activeFacilityTask?.taskStatus) ==
+                          : _activeFacilityTask?.taskStatus ==
                                 FacilityTaskStatus.pending
                           ? 'Pending'
                           : 'In Progress',
                       style: TextStyle(
                         color:
-                            (_cleaningTask?.taskStatus ??
-                                    _activeFacilityTask?.taskStatus) ==
+                            _activeFacilityTask?.taskStatus ==
                                 FacilityTaskStatus.completed
                             ? const Color(0xFF16A34A)
-                            : (_cleaningTask?.taskStatus ??
-                                      _activeFacilityTask?.taskStatus) ==
+                            : _activeFacilityTask?.taskStatus ==
                                   FacilityTaskStatus.pending
                             ? const Color(0xFFD97706)
                             : const Color(0xFF1D4ED8),
@@ -1223,9 +946,7 @@ class _BasicFacilityTaskDetailPageState
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: _availableTasks.map((t) {
-                      final isSelected =
-                          t.id ==
-                          (_cleaningTask?.id ?? _activeFacilityTask?.id);
+                      final isSelected = t.id == _activeFacilityTask?.id;
                       return Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: ChoiceChip(
@@ -1297,112 +1018,441 @@ class _BasicFacilityTaskDetailPageState
 
   /// Completed View if already completed
   Widget _buildCompletedScreen() {
-    final photos = _remotePhotoUrls.values.toList();
+    final startTime = _activeFacilityTask?.scheduledStartTime;
+    final endTime = _activeFacilityTask?.scheduledEndTime;
+    final cleanerName = _activeFacilityTask?.assignedUser;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text('Clean Location'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      appBar: AppBar(title: const Text('Clean Location')),
+      body: SafeArea(
         child: Column(
           children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                child: Column(
+                  children: [
+                    // 1. Hero Celebration Icon with Soft Rings
+                    Center(
+                      child: Container(
+                        width: 92,
+                        height: 92,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCFCE7),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFF86EFAC),
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFF16A34A,
+                              ).withValues(alpha: 0.15),
+                              blurRadius: 18,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.check_circle_rounded,
+                            color: Color(0xFF16A34A),
+                            size: 64,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 2. Main Headline & Subtitle
+                    const Text(
+                      'Cleaning Completed Today!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF15803D),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Task was verified and submitted successfully.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 3. Facility Info Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Facility Name + Status Badge
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _facilityName ?? 'Facility Area',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDCFCE7),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(0xFF86EFAC),
+                                  ),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.check,
+                                      size: 14,
+                                      color: Color(0xFF16A34A),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Completed',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF16A34A),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // Facility Path
+                          if (_displayFacilityPath.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.apartment_rounded,
+                                    size: 15,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      _displayFacilityPath,
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey.shade800,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                          ),
+
+                          // Meta details row: Cleaner + Time
+                          Row(
+                            children: [
+                              // Shift Time
+                              if (startTime != null) ...[
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.schedule_rounded,
+                                        size: 16,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          endTime != null
+                                              ? '$startTime - $endTime'
+                                              : startTime,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              // Cleaner
+                              if (cleanerName != null &&
+                                  cleanerName.isNotEmpty) ...[
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.person_outline_rounded,
+                                        size: 16,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          cleanerName,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // 4. Sticky Bottom Actions Bar
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFDCFCE7),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF86EFAC)),
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
               ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.check_circle_rounded,
-                    color: Color(0xFF16A34A),
-                    size: 54,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Cleaning Completed Today!',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF16A34A),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF16A34A),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 2,
+                      ),
+                      icon: const Icon(Icons.qr_code_scanner, size: 22),
+                      label: const Text(
+                        'Scan Next QR Code',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      onPressed: () {
+                        context.pushReplacement(
+                          '/facility-qr-scanner?mode=basic',
+                        );
+                      },
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _facilityName ?? 'Facility area',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: Icon(
+                        Icons.home_outlined,
+                        size: 20,
+                        color: Colors.grey.shade700,
+                      ),
+                      label: Text(
+                        'Back to Home',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                      onPressed: () => context.go('/'),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            if (photos.isNotEmpty) ...[
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Submitted Photos',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                  ),
-                  itemCount: photos.length,
-                  itemBuilder: (context, index) {
-                    final url = photos[index];
-                    return GestureDetector(
-                      onTap: () => _previewRemoteImage(url),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: CachedNetworkImage(
-                          imageUrl: url,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, _, _) =>
-                              const Icon(Icons.broken_image),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ] else ...[
-              const Spacer(),
-              const Text('No photos were attached to this task.'),
-              const Spacer(),
-            ],
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: FilledButton.icon(
-                icon: const Icon(Icons.qr_code_scanner),
-                label: const Text(
-                  'Scan Another QR Code',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                onPressed: () {
-                  context.pushReplacement('/facility-qr-scanner?mode=basic');
-                },
-              ),
-            ),
           ],
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: Colors.white),
+              SizedBox(height: 16),
+              Text(
+                'Finding cleaning task...',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Clean Location'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.go('/'),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.info_outline,
+                    color: Colors.red.shade600,
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _loadTaskData,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Try Again'),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: () => context.pushReplacement(
+                        '/facility-qr-scanner?mode=basic',
+                      ),
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text('Scan QR'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final isCompleted =
+        _activeFacilityTask?.taskStatus == FacilityTaskStatus.completed;
+
+    if (isCompleted) {
+      return _buildCompletedScreen();
+    }
+
+    // Main Camera Viewport + Natural Bottom Panel
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Column(
+        children: [
+          // 1. TOP LIVE CAMERA VIEWPORT (Fills available space)
+          Expanded(child: _buildCameraViewport()),
+
+          // 2. BOTTOM COMPACT TASK INFO & SUBMIT BAR (Natural height, no empty gaps)
+          _buildBottomDataPanel(),
+        ],
       ),
     );
   }
@@ -1415,9 +1465,9 @@ class _GlassCircleButton extends StatelessWidget {
     this.color = Colors.white,
   });
 
+  final Color color;
   final IconData icon;
   final VoidCallback onPressed;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {

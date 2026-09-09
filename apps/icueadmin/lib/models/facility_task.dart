@@ -82,6 +82,7 @@ class FacilityTask {
     this.scheduledStartTime,
     this.scheduledEndTime,
     this.status = '',
+    this.facilityPath,
     this.createdBy,
     this.createdDate,
     this.updatedBy,
@@ -130,6 +131,8 @@ class FacilityTask {
     scheduledStartTime: json['ScheduledStartTime']?.toString(),
     scheduledEndTime: json['ScheduledEndTime']?.toString(),
     status: json['Status']?.toString() ?? '',
+    facilityPath:
+        json['FacilityPath']?.toString() ?? json['facilityPath']?.toString(),
     createdBy: json['CreatedBy']?.toString(),
     createdDate: json['CreatedDate'] == null
         ? null
@@ -164,6 +167,7 @@ class FacilityTask {
   final String? scheduledStartTime;
   final DateTime? startedAt;
   final String? startedBy;
+  final String? facilityPath;
   final String status;
   final int? templateVersion;
   final String? updatedBy;
@@ -188,6 +192,7 @@ class FacilityTask {
     String? scheduledStartTime,
     String? scheduledEndTime,
     String? status,
+    String? facilityPath,
     String? createdBy,
     DateTime? createdDate,
     String? updatedBy,
@@ -212,6 +217,7 @@ class FacilityTask {
     scheduledStartTime: scheduledStartTime ?? this.scheduledStartTime,
     scheduledEndTime: scheduledEndTime ?? this.scheduledEndTime,
     status: status ?? this.status,
+    facilityPath: facilityPath ?? this.facilityPath,
     createdBy: createdBy ?? this.createdBy,
     createdDate: createdDate ?? this.createdDate,
     updatedBy: updatedBy ?? this.updatedBy,
@@ -240,6 +246,7 @@ class FacilityTask {
     'ScheduledStartTime': scheduledStartTime,
     'ScheduledEndTime': scheduledEndTime,
     'Status': status,
+    'FacilityPath': facilityPath,
     'CreatedBy': createdBy,
     'CreatedDate': createdDate?.toIso8601String(),
     'UpdatedBy': updatedBy,

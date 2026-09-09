@@ -76,6 +76,7 @@ class FacilityProvider extends ChangeNotifier {
 
   List<FacilityTask> cleaningTasks = [];
   List<FacilityTask> cleaningTasksQr = [];
+  Facility? currentFacilityQr;
   CleaningTask? cleaningTaskDetails;
   Map<String, String> cachedImages = {};
   final Set<String> _failedImageDocumentIds = {};
@@ -109,6 +110,7 @@ class FacilityProvider extends ChangeNotifier {
   void reset() {
     cleaningTasks.clear();
     cleaningTasksQr.clear();
+    currentFacilityQr = null;
     cleaningTaskDetails = null;
     cachedImages.clear();
     _failedImageDocumentIds.clear();
@@ -209,6 +211,7 @@ class FacilityProvider extends ChangeNotifier {
       if (response.statusCode == 200 && response.data != null && !isErr) {
         final data = QrCleaningTaskResponse.fromJson(response.data);
         cleaningTasksQr = data.data.tasks;
+        currentFacilityQr = data.data.facility;
         return true;
       } else {
         _errorMessage = response.data is Map && response.data['message'] != null

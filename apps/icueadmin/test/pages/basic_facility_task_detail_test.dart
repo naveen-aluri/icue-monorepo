@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:icueadmin/config/env.dart';
 import 'package:icueadmin/models/app_settings.dart';
-import 'package:icueadmin/models/cleaning_task_response.dart';
 import 'package:icueadmin/models/facility_task.dart';
 import 'package:icueadmin/pages/facility_management/basic_facility_task_detail_page.dart';
 import 'package:icueadmin/providers/common_provider.dart';
@@ -29,9 +28,9 @@ class FakeCrashlyticsService extends Fake implements CrashlyticsService {
 class FakeApiClient extends ApiClient {
   FakeApiClient() : super(Dio(), FakeCrashlyticsService());
 
-  Response? mockResponse;
   dynamic capturedData;
   String? capturedPath;
+  Response? mockResponse;
   final List<Map<String, dynamic>> postCalls = [];
 
   @override
@@ -69,6 +68,7 @@ class FakeApiClient extends ApiClient {
               'Name': 'MYP Girls Washroom',
               'Code': 'WASH-G-01',
               'QrCode': 'QR-WASH-G-01',
+              'FacilityPath': 'Block 1 || First Floor || MYP Girls Washroom',
             },
             'tasks': [
               {
@@ -180,6 +180,18 @@ void main() {
       );
       expect(startCall, isTrue);
 
+      // Verify getCleaningTask was NOT called at all
+      final getTaskCall = fakeApiClient.postCalls.any(
+        (c) => c['path'] == '/v1.0/getCleaningTask',
+      );
+      expect(getTaskCall, isFalse);
+
+      // Verify facilityPath is displayed as breadcrumbs
+      expect(
+        find.text('Block 1 • First Floor • MYP Girls Washroom'),
+        findsAtLeastNWidgets(1),
+      );
+
       expect(find.text('Morning Washroom Cleaning'), findsAtLeastNWidgets(1));
       expect(find.text('Shift: 07:00 AM • Mohan Krishna'), findsOneWidget);
       expect(find.text('In Progress'), findsOneWidget);
@@ -214,23 +226,28 @@ void main() {
         id: 502,
         scheduleName: 'Afternoon Washroom Cleaning',
         status: 'Completed',
+        facilityPath: 'Block 2 || Ground Floor || Afternoon Washroom',
         scheduledStartTime: '01:00 PM',
         scheduledEndTime: '02:00 PM',
       ),
     ];
-    facilityProvider.cleaningTaskDetails = CleaningTask(
-      id: 502,
-      scheduleName: 'Afternoon Washroom Cleaning',
-      status: 'Completed',
-      scheduledStartTime: '01:00 PM',
-      scheduledEndTime: '02:00 PM',
-      afterPhotos: [],
-    );
 
     await tester.pumpWidget(createTestWidget(taskId: 502));
     await tester.pumpAndSettle();
 
     expect(find.text('Cleaning Completed Today!'), findsOneWidget);
-    expect(find.text('Scan Another QR Code'), findsOneWidget);
+    expect(
+      find.text('Block 2 • Ground Floor • Afternoon Washroom'),
+      findsOneWidget,
+    );
+    expect(find.text('Scan Next QR Code'), findsOneWidget);
+    expect(find.text('Back to Home'), findsOneWidget);
+    expect(find.textContaining('Submitted Photos'), findsNothing);
+
+    // Verify getCleaningTask was NOT called
+    final getTaskCall = fakeApiClient.postCalls.any(
+      (c) => c['path'] == '/v1.0/getCleaningTask',
+    );
+    expect(getTaskCall, isFalse);
   });
 }

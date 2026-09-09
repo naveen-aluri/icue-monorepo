@@ -127,6 +127,7 @@ class Facility {
     this.name = '',
     this.code = '',
     this.description = '',
+    this.facilityPath,
     this.location = '',
     this.area,
     this.quantity,
@@ -158,6 +159,10 @@ class Facility {
     name: json['Name']?.toString() ?? '',
     code: json['Code']?.toString() ?? '',
     description: json['Description']?.toString() ?? '',
+    facilityPath:
+        json['FacilityPath']?.toString() ??
+        json['facilityPath']?.toString() ??
+        '',
     location: json['Location']?.toString() ?? '',
     area: json['Area'],
     quantity: json['Quantity'],
@@ -175,6 +180,7 @@ class Facility {
   final String? createdBy;
   final DateTime? createdDate;
   final String description;
+  final String? facilityPath;
   final int? facilityTypeId;
   final int? id;
   final bool isActive;
@@ -196,6 +202,7 @@ class Facility {
     String? name,
     String? code,
     String? description,
+    String? facilityPath,
     String? location,
     dynamic area,
     dynamic quantity,
@@ -213,6 +220,7 @@ class Facility {
     name: name ?? this.name,
     code: code ?? this.code,
     description: description ?? this.description,
+    facilityPath: facilityPath ?? this.facilityPath,
     location: location ?? this.location,
     area: area ?? this.area,
     quantity: quantity ?? this.quantity,
@@ -232,6 +240,7 @@ class Facility {
     'Name': name,
     'Code': code,
     'Description': description,
+    'FacilityPath': facilityPath,
     'Location': location,
     'Area': area,
     'Quantity': quantity,
