@@ -2,11 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:provider/provider.dart';
+
+import '../../models/facility_task.dart';
+import '../../models/facility_task_status.dart';
+import '../../providers/facility_provider.dart';
 
 class FacilityQrScannerPage extends StatefulWidget {
-  const FacilityQrScannerPage({super.key, this.onScanned});
+  const FacilityQrScannerPage({
+    super.key,
+    this.onScanned,
+    this.isBasic = false,
+  });
 
   final void Function(String qrCode)? onScanned;
+  final bool isBasic;
 
   @override
   State<FacilityQrScannerPage> createState() => _FacilityQrScannerPageState();
@@ -21,6 +31,12 @@ class _FacilityQrScannerPageState extends State<FacilityQrScannerPage>
   bool _isProcessing = false;
   bool _isTorchOn = false;
   CameraFacing _facing = CameraFacing.back;
+
+  // Basic facility processing state
+  String? _scannedCode;
+  int _basicStep = 1; // 1: checking schedule, 2: starting task, 3: task ready
+  String? _basicErrorMessage;
+  FacilityTask? _targetTask;
 
   @override
   void initState() {
@@ -53,13 +69,16 @@ class _FacilityQrScannerPageState extends State<FacilityQrScannerPage>
     final code = barcode?.rawValue?.trim();
 
     if (code != null && code.isNotEmpty) {
-      setState(() => _isProcessing = true);
-      HapticFeedback.mediumImpact();
-
       if (widget.onScanned != null) {
+        setState(() => _isProcessing = true);
+        HapticFeedback.mediumImpact();
         widget.onScanned!(code);
         if (mounted) Navigator.of(context).pop(code);
+      } else if (widget.isBasic) {
+        _processBasicWorkflow(code);
       } else {
+        setState(() => _isProcessing = true);
+        HapticFeedback.mediumImpact();
         final targetRoute = Uri(
           path: '/facility-qr-tasks',
           queryParameters: {'qrCode': code},
@@ -67,6 +86,131 @@ class _FacilityQrScannerPageState extends State<FacilityQrScannerPage>
         context.pushReplacement(targetRoute);
       }
     }
+  }
+
+  Future<void> _processBasicWorkflow(String code) async {
+    setState(() {
+      _isProcessing = true;
+      _scannedCode = code;
+      _basicStep = 1;
+      _basicErrorMessage = null;
+      _targetTask = null;
+    });
+
+    HapticFeedback.mediumImpact();
+
+    try {
+      await _scannerController.stop();
+    } catch (_) {}
+
+    final prov = context.read<FacilityProvider>();
+
+    try {
+      // Step 1: Call getFacilityTasksByQrCode with IsBasicFacilityMgmt: true
+      final fetchSuccess = await prov.getCleaningTasksByQR(
+        DateTime.now(),
+        code,
+        isBasicFacilityMgmt: true,
+      );
+
+      if (!mounted) return;
+
+      if (!fetchSuccess) {
+        setState(() {
+          _basicErrorMessage = prov.errorMessage ??
+              'Could not find cleaning tasks for this QR code.';
+        });
+        return;
+      }
+
+      final tasks = prov.cleaningTasksQr;
+      if (tasks.isEmpty) {
+        setState(() {
+          _basicErrorMessage =
+              'No cleaning tasks scheduled for this location today.';
+        });
+        return;
+      }
+
+      // Select active task: inProgress > pending > first
+      final task = tasks.firstWhere(
+        (t) => t.taskStatus == FacilityTaskStatus.inProgress,
+        orElse: () => tasks.firstWhere(
+          (t) => t.taskStatus == FacilityTaskStatus.pending,
+          orElse: () => tasks.first,
+        ),
+      );
+      _targetTask = task;
+
+      // If task is completed, navigate to details to view completion state
+      if (task.taskStatus == FacilityTaskStatus.completed) {
+        setState(() => _basicStep = 3);
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) {
+          final targetRoute = Uri(
+            path: '/basic-facility-task-detail',
+            queryParameters: {
+              if (task.id != null) 'taskId': task.id.toString(),
+              'qrCode': code,
+            },
+          ).toString();
+          context.pushReplacement(targetRoute);
+        }
+        return;
+      }
+
+      // Step 2: Immediately call startCleaningTask
+      setState(() => _basicStep = 2);
+
+      if (task.taskStatus == FacilityTaskStatus.pending && task.id != null) {
+        final startSuccess = await prov.startCleaningTask(task.id!);
+        if (!mounted) return;
+
+        if (!startSuccess) {
+          setState(() {
+            _basicErrorMessage = prov.errorMessage ??
+                'Failed to start cleaning task. Please try again.';
+          });
+          return;
+        }
+      }
+
+      // Step 3: Success! Both API calls succeeded
+      setState(() => _basicStep = 3);
+      HapticFeedback.heavyImpact();
+
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (mounted) {
+        final targetRoute = Uri(
+          path: '/basic-facility-task-detail',
+          queryParameters: {
+            if (task.id != null) 'taskId': task.id.toString(),
+            'qrCode': code,
+          },
+        ).toString();
+        context.pushReplacement(targetRoute);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _basicErrorMessage =
+              'An error occurred while setting up the cleaning task.';
+        });
+      }
+    }
+  }
+
+  Future<void> _resetScanner() async {
+    setState(() {
+      _isProcessing = false;
+      _scannedCode = null;
+      _basicErrorMessage = null;
+      _basicStep = 1;
+      _targetTask = null;
+    });
+    try {
+      await _scannerController.start();
+    } catch (_) {}
   }
 
   Future<void> _toggleTorch() async {
@@ -227,6 +371,8 @@ class _FacilityQrScannerPageState extends State<FacilityQrScannerPage>
     if (widget.onScanned != null) {
       widget.onScanned!(code);
       if (mounted) Navigator.of(context).pop(code);
+    } else if (widget.isBasic) {
+      _processBasicWorkflow(code);
     } else {
       final targetRoute = Uri(
         path: '/facility-qr-tasks',
@@ -392,9 +538,11 @@ class _FacilityQrScannerPageState extends State<FacilityQrScannerPage>
                     icon: Icons.arrow_back,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
-                  const Text(
-                    'Scan Facility QR',
-                    style: TextStyle(
+                  Text(
+                    widget.isBasic
+                        ? 'Scan Location QR'
+                        : 'Scan Facility QR',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -478,43 +626,403 @@ class _FacilityQrScannerPageState extends State<FacilityQrScannerPage>
             ),
           ),
 
-          // 6. Processing / Success Indicator
+          // 6. Processing / Success Indicator or Basic Facility Workflow Overlay
           if (_isProcessing)
-            Container(
-              color: Colors.black54,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'QR Code Detected!',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+            widget.isBasic
+                ? _buildBasicProcessingOverlay()
+                : Container(
+                    color: Colors.black54,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'QR Code Detected!',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Loading cleaning tasks...',
+                              style:
+                                  TextStyle(fontSize: 13, color: Colors.grey),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Loading cleaning tasks...',
-                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                  ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBasicProcessingOverlay() {
+    final theme = Theme.of(context);
+    final isError = _basicErrorMessage != null;
+    final isDone = _basicStep >= 3;
+
+    return Container(
+      color: Colors.black.withValues(alpha: 0.75),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 380),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Top Icon Badge
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: isError
+                        ? const Color(0xFFFEE2E2)
+                        : (isDone
+                            ? const Color(0xFFDCFCE7)
+                            : theme.colorScheme.primary
+                                .withValues(alpha: 0.12)),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isError
+                        ? Icons.warning_amber_rounded
+                        : (isDone
+                            ? Icons.check_circle_rounded
+                            : Icons.qr_code_scanner),
+                    color: isError
+                        ? const Color(0xFFDC2626)
+                        : (isDone
+                            ? const Color(0xFF16A34A)
+                            : theme.colorScheme.primary),
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Title
+                Text(
+                  isError
+                      ? 'Task Setup Issue'
+                      : (isDone
+                          ? 'Cleaning Task Ready!'
+                          : 'Setting Up Cleaning Task'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isError
+                        ? const Color(0xFF991B1B)
+                        : (isDone
+                            ? const Color(0xFF16A34A)
+                            : Colors.black87),
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Scanned QR Code Pill
+                if (_scannedCode != null && _scannedCode!.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: Colors.grey.shade700,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            _targetTask?.scheduleName != null
+                                ? '${_targetTask!.scheduleName!} • ${_scannedCode!}'
+                                : _scannedCode!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade800,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                const SizedBox(height: 20),
+
+                // Content: Error Alert or Multi-step Progress
+                if (isError) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFFCA5A5)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Color(0xFFDC2626),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _basicErrorMessage!,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF7F1D1D),
+                              fontWeight: FontWeight.w500,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Error Actions
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.qr_code_scanner, size: 20),
+                      label: const Text(
+                        'Scan Again',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: _resetScanner,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Retry'),
+                          onPressed: () {
+                            if (_scannedCode != null) {
+                              _processBasicWorkflow(_scannedCode!);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.keyboard, size: 18),
+                          label: const Text('Manual'),
+                          onPressed: () {
+                            _resetScanner();
+                            _showManualEntrySheet();
+                          },
+                        ),
                       ),
                     ],
                   ),
+                ] else ...[
+                  // Multi-Step Progress Box
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      children: [
+                        // Step 1: Checking Schedule
+                        _buildStepRow(
+                          stepNumber: 1,
+                          title: 'Verifying Schedule',
+                          activeSubtitle:
+                              'Fetching cleaning task for location...',
+                          completedSubtitle: 'Cleaning schedule verified',
+                          isActive: _basicStep == 1,
+                          isCompleted: _basicStep > 1,
+                          primaryColor: theme.colorScheme.primary,
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child:
+                              Divider(height: 1, color: Color(0xFFE2E8F0)),
+                        ),
+                        // Step 2: Starting Cleaning Task
+                        _buildStepRow(
+                          stepNumber: 2,
+                          title: 'Starting Cleaning Task',
+                          activeSubtitle:
+                              'Activating task and shift timer...',
+                          completedSubtitle: 'Task activated successfully',
+                          isActive: _basicStep == 2,
+                          isCompleted: _basicStep >= 3,
+                          primaryColor: theme.colorScheme.primary,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (!isDone)
+                    TextButton(
+                      onPressed: _resetScanner,
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepRow({
+    required int stepNumber,
+    required String title,
+    required String activeSubtitle,
+    required String completedSubtitle,
+    required bool isActive,
+    required bool isCompleted,
+    required Color primaryColor,
+  }) {
+    Widget indicator;
+    if (isCompleted) {
+      indicator = const Icon(
+        Icons.check_circle_rounded,
+        color: Color(0xFF16A34A),
+        size: 22,
+      );
+    } else if (isActive) {
+      indicator = SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.5,
+          color: primaryColor,
+        ),
+      );
+    } else {
+      indicator = Container(
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey.shade400, width: 1.8),
+        ),
+        child: Center(
+          child: Text(
+            '$stepNumber',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade500,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        indicator,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isCompleted
+                      ? const Color(0xFF16A34A)
+                      : (isActive ? Colors.black87 : Colors.grey.shade500),
                 ),
               ),
-            ),
-        ],
-      ),
+              const SizedBox(height: 2),
+              Text(
+                isCompleted
+                    ? completedSubtitle
+                    : (isActive
+                        ? activeSubtitle
+                        : 'Waiting for schedule...'),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isCompleted
+                      ? const Color(0xFF16A34A)
+                      : (isActive
+                          ? Colors.grey.shade700
+                          : Colors.grey.shade400),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

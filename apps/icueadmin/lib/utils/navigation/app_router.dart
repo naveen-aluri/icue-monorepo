@@ -15,6 +15,7 @@ import '../../pages/drivers/driver_docs_page.dart';
 import '../../pages/drivers/driver_info_page.dart';
 import '../../pages/drivers/drivers_page.dart';
 import '../../pages/drop_boarding/drop_boarding_page.dart';
+import '../../pages/facility_management/basic_facility_task_detail_page.dart';
 import '../../pages/facility_management/facility_qr_scanner_page.dart';
 import '../../pages/facility_management/facility_qr_tasks_page.dart';
 import '../../pages/facility_management/facility_task_detail_page.dart';
@@ -482,9 +483,27 @@ final GoRouter appRouter = GoRouter(
             GoRoute(
               parentNavigatorKey: navigatorKey,
               path: 'facility-qr-scanner',
-              builder: (context, state) => const ScreenTracker(
+              builder: (context, state) => ScreenTracker(
                 screenName: 'facility-qr-scanner-page',
-                child: FacilityQrScannerPage(),
+                child: FacilityQrScannerPage(
+                  isBasic: state.uri.queryParameters['mode'] == 'basic',
+                ),
+              ),
+            ),
+            GoRoute(
+              parentNavigatorKey: navigatorKey,
+              path: 'basic-facility-task-detail',
+              builder: (context, state) => ScreenTracker(
+                screenName: 'basic-facility-task-detail-page',
+                parameters: {
+                  'qrCode': state.uri.queryParameters['qrCode'] ?? '',
+                  'taskId': state.uri.queryParameters['taskId'] ?? '',
+                },
+                child: BasicFacilityTaskDetailPage(
+                  qrCode: state.uri.queryParameters['qrCode'],
+                  taskId: int.tryParse(state.uri.queryParameters['taskId'] ?? '') ??
+                      (state.extra is int ? state.extra as int : null),
+                ),
               ),
             ),
           ],

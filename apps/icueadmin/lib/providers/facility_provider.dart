@@ -22,8 +22,8 @@ class _ImageCompressParams {
   const _ImageCompressParams(this.bytes);
 
   final Uint8List bytes;
-  static const int quality = 75;
-  static const int maxWidth = 1200;
+  static const int quality = 55;
+  static const int maxDimension = 800;
 }
 
 Uint8List _compressImageWorker(_ImageCompressParams params) {
@@ -31,9 +31,15 @@ Uint8List _compressImageWorker(_ImageCompressParams params) {
     final decoded = img.decodeImage(params.bytes);
     if (decoded == null) return params.bytes;
 
-    final resized = decoded.width > _ImageCompressParams.maxWidth
-        ? img.copyResize(decoded, width: _ImageCompressParams.maxWidth)
-        : decoded;
+    img.Image resized = decoded;
+    const maxDim = _ImageCompressParams.maxDimension;
+    if (decoded.width > maxDim || decoded.height > maxDim) {
+      if (decoded.width >= decoded.height) {
+        resized = img.copyResize(decoded, width: maxDim);
+      } else {
+        resized = img.copyResize(decoded, height: maxDim);
+      }
+    }
 
     return Uint8List.fromList(
       img.encodeJpg(resized, quality: _ImageCompressParams.quality),
@@ -171,17 +177,18 @@ class FacilityProvider extends ChangeNotifier {
   // ---------------------------------------------------------
   // 2. Fetch Cleaning Tasks by QR Code
   // ---------------------------------------------------------
-  Future<void> getCleaningTasksByQR(
+  Future<bool> getCleaningTasksByQR(
     DateTime scheduledDate,
-    String qrCode,
-  ) async {
+    String qrCode, {
+    bool? isBasicFacilityMgmt,
+  }) async {
     _qrTasksLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
       final user = _currentUser;
-      final payload = {
+      final payload = <String, dynamic>{
         'OrganizationId': user?.organizationId,
         'ZoneId': user?.zoneId,
         'BranchId': user?.branchId,
@@ -190,6 +197,7 @@ class FacilityProvider extends ChangeNotifier {
         'PageSize': 20,
         'QrCode': qrCode,
         'AssignedUserId': user?.id,
+        'IsBasicFacilityMgmt': ?isBasicFacilityMgmt,
       };
 
       final response = await _apiClient.post(
@@ -197,13 +205,16 @@ class FacilityProvider extends ChangeNotifier {
         data: payload,
       );
 
-      if (response.statusCode == 200 && response.data != null) {
+      final isErr = response.data is Map && response.data['err'] == true;
+      if (response.statusCode == 200 && response.data != null && !isErr) {
         final data = QrCleaningTaskResponse.fromJson(response.data);
         cleaningTasksQr = data.data.tasks;
+        return true;
       } else {
         _errorMessage = response.data is Map && response.data['message'] != null
             ? response.data['message'].toString()
             : 'Failed to load tasks for scanned QR code';
+        return false;
       }
     } on DioException catch (dioError, stack) {
       _errorMessage = 'Network error fetching QR facility tasks';
@@ -213,6 +224,7 @@ class FacilityProvider extends ChangeNotifier {
         stack,
         message: dioError.message,
       );
+      return false;
     } catch (error, stack) {
       _errorMessage = 'An unexpected error occurred while loading QR tasks';
       _apiClient.logCrash(
@@ -221,6 +233,7 @@ class FacilityProvider extends ChangeNotifier {
         stack,
         message: error.toString(),
       );
+      return false;
     } finally {
       _qrTasksLoading = false;
       notifyListeners();
@@ -327,11 +340,13 @@ class FacilityProvider extends ChangeNotifier {
       final errMsg = response.data is Map && response.data['message'] != null
           ? response.data['message'].toString()
           : 'Failed to start cleaning task.';
+      _errorMessage = errMsg;
       if (context != null && context.mounted) {
         AppUtils.showErrorMessage(context, errMsg);
       }
       return false;
     } on DioException catch (dioError, stack) {
+      _errorMessage = 'Network error starting cleaning task';
       _apiClient.logCrash(
         '/v1.0/startCleaningTask',
         dioError,
@@ -343,6 +358,8 @@ class FacilityProvider extends ChangeNotifier {
       }
       return false;
     } catch (error, stack) {
+      _errorMessage =
+          'An unexpected error occurred while starting cleaning task';
       _apiClient.logCrash(
         '/v1.0/startCleaningTask',
         error,

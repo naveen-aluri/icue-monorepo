@@ -62,7 +62,11 @@ class _FacilityQrTasksPageState extends State<FacilityQrTasksPage> {
 
   void _loadQrTasks() {
     final prov = context.read<FacilityProvider>();
-    prov.getCleaningTasksByQR(DateTime.now(), widget.qrCode);
+    prov.getCleaningTasksByQR(
+      DateTime.now(),
+      widget.qrCode,
+      isBasicFacilityMgmt: false,
+    );
   }
 
   void _openCameraScanner() {
