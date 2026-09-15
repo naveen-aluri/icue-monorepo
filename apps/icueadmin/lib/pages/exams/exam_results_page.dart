@@ -196,6 +196,7 @@ class _ExamResultsPageState extends State<ExamResultsPage> {
   Widget build(BuildContext context) {
     final examProvider = context.watch<ExamProvider>();
     final studentsProvider = context.watch<StudentsProvider>();
+    context.watch<AuthProvider>();
     final classes = ExamHelpers.getAvailableClasses(context);
 
     // Fallback if user has no assigned classes in userInfo

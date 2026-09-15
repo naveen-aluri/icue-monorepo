@@ -69,8 +69,8 @@ class ExamResult {
       passed: json['Passed'] is bool ? json['Passed'] as bool : null,
       subjectMarks: rawSubjects is List
           ? List<SubjectMark>.from(
-              rawSubjects.map(
-                (x) => SubjectMark.fromJson(x as Map<String, dynamic>),
+              rawSubjects.whereType<Map>().map(
+                (x) => SubjectMark.fromJson(Map<String, dynamic>.from(x)),
               ),
             )
           : null,
@@ -105,7 +105,12 @@ class ExamResult {
   bool get isPassed {
     if (passed != null) return passed!;
     final res = result?.toUpperCase() ?? status?.toUpperCase();
-    return res == 'PASS';
+    return res == 'PASS' || res == 'PASSED';
+  }
+
+  bool get isFailed {
+    final res = result?.toUpperCase() ?? status?.toUpperCase();
+    return res == 'FAIL' || res == 'FAILED';
   }
 
   Map<String, dynamic> toJson() => {
@@ -180,7 +185,8 @@ class SubjectMark {
 
   bool get isPassed {
     if (passed != null) return passed!;
-    if (result?.toUpperCase() == 'PASS') return true;
+    final res = result?.toUpperCase();
+    if (res == 'PASS' || res == 'PASSED') return true;
     if (marks != null && passingMarks != null) return marks! >= passingMarks!;
     return false;
   }

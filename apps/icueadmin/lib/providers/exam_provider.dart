@@ -96,8 +96,8 @@ class ExamProvider extends ChangeNotifier {
 
       final rawList = _extractList(response.data) ?? [];
       prepExams = rawList
-          .whereType<Map<String, dynamic>>()
-          .map(PrepExam.fromJson)
+          .whereType<Map>()
+          .map((m) => PrepExam.fromJson(Map<String, dynamic>.from(m)))
           .where((e) => e.status != 'Inactive')
           .toList();
     } catch (error, stack) {
@@ -117,9 +117,7 @@ class ExamProvider extends ChangeNotifier {
       final student = students[index];
       final newStatus = marks != null ? 'PRESENT' : student.status;
       // Guard against redundant notification if no actual change
-      if (student.marks == marks &&
-          student.status == newStatus &&
-          !student.isSaved) {
+      if (student.marks == marks && student.status == newStatus) {
         return;
       }
       student.marks = marks;
@@ -140,8 +138,7 @@ class ExamProvider extends ChangeNotifier {
       final willClearMarks = status == 'ABSENT' || status == 'NA';
       // Guard against redundant notification if no actual change
       if (student.status == status &&
-          (!willClearMarks || student.marks == null) &&
-          !student.isSaved) {
+          (!willClearMarks || student.marks == null)) {
         return;
       }
       student.status = status;
@@ -160,7 +157,7 @@ class ExamProvider extends ChangeNotifier {
     if (index != -1 && index < students.length) {
       final student = students[index];
       // Guard against redundant notification if no actual change
-      if (student.remarks == remarks && !student.isSaved) {
+      if (student.remarks == remarks) {
         return;
       }
       student.remarks = remarks;
@@ -256,8 +253,8 @@ class ExamProvider extends ChangeNotifier {
 
       final rawList = _extractList(response.data) ?? [];
       schedules = rawList
-          .whereType<Map<String, dynamic>>()
-          .map(ExamSchedule.fromJson)
+          .whereType<Map>()
+          .map((m) => ExamSchedule.fromJson(Map<String, dynamic>.from(m)))
           .toList();
     } catch (error, stack) {
       schedules = [];
@@ -293,6 +290,9 @@ class ExamProvider extends ChangeNotifier {
                 isPublished: true,
                 status: 'PUBLISHED',
               );
+              if (selectedSchedule != null && selectedSchedule!.id == examId) {
+                selectedSchedule = schedules[index];
+              }
               notifyListeners();
             }
             return true;
@@ -433,8 +433,8 @@ class ExamProvider extends ChangeNotifier {
 
       final rawList = _extractList(response.data) ?? [];
       students = rawList
-          .whereType<Map<String, dynamic>>()
-          .map(ExamStudent.fromJson)
+          .whereType<Map>()
+          .map((m) => ExamStudent.fromJson(Map<String, dynamic>.from(m)))
           .toList();
       _rebuildStudentIndex();
 
@@ -503,7 +503,10 @@ class ExamProvider extends ChangeNotifier {
           (responseData is Map
               ? (responseData['saved'] == 1 ||
                     responseData['saved'] == true ||
-                    responseData['saved'] == '1')
+                    responseData['saved'] == '1' ||
+                    responseData['success'] == true ||
+                    responseData['status'] == 200 ||
+                    responseData['status'] == 'success')
               : true);
 
       if (isSavedSuccess) {
@@ -551,8 +554,8 @@ class ExamProvider extends ChangeNotifier {
       final rawList = _extractList(response.data);
       if (rawList == null) return;
 
-      final data = rawList.whereType<Map<String, dynamic>>().map(
-        ExamMarks.fromJson,
+      final data = rawList.whereType<Map>().map(
+        (m) => ExamMarks.fromJson(Map<String, dynamic>.from(m)),
       );
 
       bool changed = false;
@@ -599,12 +602,8 @@ class ExamProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final now = DateTime.now();
-      final dateStr = '${now.month}/${now.day}/${now.year}';
-      final hour = now.hour % 12 == 0 ? 12 : now.hour % 12;
-      final amPm = now.hour >= 12 ? 'PM' : 'AM';
-      final minute = now.minute.toString().padLeft(2, '0');
-      final second = now.second.toString().padLeft(2, '0');
-      final timeStr = '$hour:$minute:$second $amPm';
+      final dateStr = _dateFormat.format(now);
+      final timeStr = _timeFormat.format(now);
 
       final payload = <String, dynamic>{
         'AcademicYear': academicYear,
@@ -627,8 +626,8 @@ class ExamProvider extends ChangeNotifier {
 
       final rawList = _extractList(response.data) ?? [];
       final parsedResults = rawList
-          .whereType<Map<String, dynamic>>()
-          .map(ExamResult.fromJson)
+          .whereType<Map>()
+          .map((m) => ExamResult.fromJson(Map<String, dynamic>.from(m)))
           .toList();
 
       _computeRanksIfMissing(parsedResults);
@@ -648,13 +647,16 @@ class ExamProvider extends ChangeNotifier {
     if (list.isEmpty) return;
     if (list.any((r) => r.rank != null && r.rank! > 0)) return;
 
-    final rankable =
-        list.where((r) => r.percentage != null && r.result != 'N/A').toList()
-          ..sort(
-            (a, b) => (b.percentage ?? b.totalMarks ?? 0).compareTo(
-              a.percentage ?? a.totalMarks ?? 0,
-            ),
-          );
+    final rankable = list
+        .where((r) =>
+            (r.percentage != null || r.totalMarks != null) &&
+            r.result?.trim().toUpperCase() != 'N/A')
+        .toList()
+      ..sort(
+        (a, b) => (b.percentage ?? b.totalMarks ?? 0).compareTo(
+          a.percentage ?? a.totalMarks ?? 0,
+        ),
+      );
 
     int currentRank = 1;
     for (int i = 0; i < rankable.length; i++) {

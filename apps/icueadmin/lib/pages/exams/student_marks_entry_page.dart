@@ -76,19 +76,26 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
 
   void _initControllers(List<ExamStudent> students) {
     for (final s in students) {
-      final marksText = (s.status == 'ABSENT' || s.marks == null)
+      final marksText =
+          (s.status == 'ABSENT' || s.status == 'NA' || s.marks == null)
           ? ''
           : s.marks.toString();
 
       if (_marksControllers.containsKey(s.studentId)) {
-        _marksControllers[s.studentId]!.text = marksText;
+        if (_marksFocusNodes[s.studentId]?.hasFocus != true &&
+            _marksControllers[s.studentId]!.text != marksText) {
+          _marksControllers[s.studentId]!.text = marksText;
+        }
       } else {
         _marksControllers[s.studentId] = TextEditingController(text: marksText);
       }
 
       final remarksText = s.remarks ?? '';
       if (_remarksControllers.containsKey(s.studentId)) {
-        _remarksControllers[s.studentId]!.text = remarksText;
+        if (_remarksFocusNodes[s.studentId]?.hasFocus != true &&
+            _remarksControllers[s.studentId]!.text != remarksText) {
+          _remarksControllers[s.studentId]!.text = remarksText;
+        }
       } else {
         _remarksControllers[s.studentId] = TextEditingController(
           text: remarksText,
@@ -127,7 +134,7 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
     // Avoid redundant auto-save if already saving or clean
     if (_savingStudentIds.contains(studentId) || student.isSaved) return;
 
-    if (student.status != 'ABSENT') {
+    if (student.status != 'ABSENT' && student.status != 'NA') {
       final ctrl = _marksControllers[studentId];
       final text = ctrl?.text.trim() ?? '';
       if (text.isEmpty && student.marks == null) {
@@ -161,14 +168,22 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
     switch (_filterStatus) {
       case 'PENDING':
         list = list
-            .where((s) => s.marks == null && s.status != 'ABSENT')
+            .where(
+              (s) =>
+                  s.marks == null && s.status != 'ABSENT' && s.status != 'NA',
+            )
             .toList();
         break;
       case 'PRESENT':
-        list = list.where((s) => s.status != 'ABSENT').toList();
+        list = list
+            .where((s) => s.status == 'PRESENT' && s.marks != null)
+            .toList();
         break;
       case 'ABSENT':
         list = list.where((s) => s.status == 'ABSENT').toList();
+        break;
+      case 'NA':
+        list = list.where((s) => s.status == 'NA').toList();
         break;
       case 'ALL':
       default:
@@ -180,9 +195,74 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
 
   Future<void> _flushPendingMarks() async {
     final examProvider = context.read<ExamProvider>();
-    for (final s in examProvider.students) {
-      if (!s.isSaved && (s.marks != null || s.status == 'ABSENT')) {
-        await _saveSingleStudent(s, isAutoSave: true);
+    final unsavedList = examProvider.students
+        .where(
+          (s) =>
+              !s.isSaved &&
+              (s.marks != null || s.status == 'ABSENT' || s.status == 'NA'),
+        )
+        .toList();
+
+    if (unsavedList.isNotEmpty) {
+      final validList = unsavedList.where((s) {
+        if (s.status == 'ABSENT' || s.status == 'NA') return true;
+        return s.marks == null || s.marks! <= widget.schedule.maximumMarks;
+      }).toList();
+
+      if (validList.isNotEmpty) {
+        await examProvider.saveExamMarks(
+          null,
+          examId: widget.schedule.id,
+          studentList: validList,
+          showLoading: false,
+        );
+      }
+    }
+  }
+
+  Future<void> _saveAllUnsavedMarks() async {
+    final examProvider = context.read<ExamProvider>();
+    final unsavedList = examProvider.students
+        .where(
+          (s) =>
+              !s.isSaved &&
+              (s.marks != null || s.status == 'ABSENT' || s.status == 'NA'),
+        )
+        .toList();
+
+    if (unsavedList.isEmpty) return;
+
+    // Validate marks before batch saving
+    for (final s in unsavedList) {
+      if (s.status != 'ABSENT' && s.status != 'NA') {
+        if (s.marks != null && s.marks! > widget.schedule.maximumMarks) {
+          AppUtils.showErrorMessage(
+            context,
+            '${s.name}\'s mark (${s.marks}) exceeds Maximum Marks (${widget.schedule.maximumMarks})',
+          );
+          _marksFocusNodes[s.studentId]?.requestFocus();
+          return;
+        }
+      }
+    }
+
+    setState(() {
+      for (final s in unsavedList) {
+        _savingStudentIds.add(s.studentId);
+      }
+    });
+
+    try {
+      await examProvider.saveExamMarks(
+        context,
+        examId: widget.schedule.id,
+        studentList: unsavedList,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savingStudentIds.clear();
+        });
       }
     }
   }
@@ -193,7 +273,7 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
   }) async {
     final examProvider = context.read<ExamProvider>();
 
-    if (student.status != 'ABSENT') {
+    if (student.status != 'ABSENT' && student.status != 'NA') {
       final ctrl = _marksControllers[student.studentId];
       final val = num.tryParse(ctrl?.text.trim() ?? '');
       if (val != null && val > widget.schedule.maximumMarks) {
@@ -233,7 +313,7 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
     if (currentIndex != -1 && currentIndex + 1 < visibleList.length) {
       for (int i = currentIndex + 1; i < visibleList.length; i++) {
         final next = visibleList[i];
-        if (next.status != 'ABSENT') {
+        if (next.status != 'ABSENT' && next.status != 'NA') {
           _marksFocusNodes[next.studentId]?.requestFocus();
           break;
         }
@@ -248,6 +328,7 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
     required int pendingCount,
     required int presentCount,
     required int absentCount,
+    required int naCount,
     required double progress,
   }) {
     return Container(
@@ -356,7 +437,7 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
             ),
           ),
 
-          // Status Filter Tabs (Only All, Pending, Present, Absent)
+          // Status Filter Tabs (All, Pending, Present, Absent, N/A)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -366,6 +447,7 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
                 _buildFilterChip('PENDING', 'Pending ($pendingCount)'),
                 _buildFilterChip('PRESENT', 'Present ($presentCount)'),
                 _buildFilterChip('ABSENT', 'Absent ($absentCount)'),
+                if (naCount > 0) _buildFilterChip('NA', 'Exempted ($naCount)'),
               ],
             ),
           ),
@@ -412,7 +494,8 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
     required ThemeData theme,
   }) {
     final isAbsent = student.status == 'ABSENT';
-    final isPresent = !isAbsent;
+    final isNA = student.status == 'NA';
+    final isPresent = !isAbsent && !isNA;
     final isSavingRow = _savingStudentIds.contains(student.studentId);
     final examProvider = context.read<ExamProvider>();
 
@@ -563,7 +646,7 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
                       ],
                     ),
                   )
-                else if (student.marks != null || isAbsent)
+                else if (student.marks != null || isAbsent || isNA)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -579,6 +662,25 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFFB45309),
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Pending',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -612,7 +714,7 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
 
             const SizedBox(height: 12),
 
-            // Row 2: Status Toggle Pills (Present / Absent only)
+            // Row 2: Status Toggle Pills (Present / Absent / N/A)
             Row(
               children: [
                 _buildStatusPill(
@@ -622,7 +724,7 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
                   activeTextColor: const Color(0xFF15803D),
                   activeBorderColor: const Color(0xFF86EFAC),
                   onTap: () {
-                    if (isAbsent) {
+                    if (isAbsent || isNA) {
                       examProvider.updateStudentStatus(
                         student.studentId,
                         'PRESENT',
@@ -631,7 +733,7 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
                     }
                   },
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _buildStatusPill(
                   label: 'Absent',
                   isActive: isAbsent,
@@ -639,13 +741,29 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
                   activeTextColor: const Color(0xFFB91C1C),
                   activeBorderColor: const Color(0xFFFCA5A5),
                   onTap: () {
-                    if (isPresent) {
+                    if (student.status != 'ABSENT') {
                       marksCtrl?.clear();
                       examProvider.updateStudentStatus(
                         student.studentId,
                         'ABSENT',
                       );
                       // Auto save when toggled to absent
+                      _saveSingleStudent(student, isAutoSave: true);
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
+                _buildStatusPill(
+                  label: 'N/A',
+                  isActive: isNA,
+                  activeBgColor: const Color(0xFFF1F5F9),
+                  activeTextColor: const Color(0xFF475569),
+                  activeBorderColor: const Color(0xFFCBD5E1),
+                  onTap: () {
+                    if (student.status != 'NA') {
+                      marksCtrl?.clear();
+                      examProvider.updateStudentStatus(student.studentId, 'NA');
+                      // Auto save when toggled to NA
                       _saveSingleStudent(student, isAutoSave: true);
                     }
                   },
@@ -798,7 +916,7 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
                   ),
                 ),
             ] else ...[
-              // Soft banner when Absent
+              // Soft banner when Absent or NA
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -806,24 +924,38 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: isAbsent
+                      ? const Color(0xFFFEF2F2)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFFEE2E2)),
+                  border: Border.all(
+                    color: isAbsent
+                        ? const Color(0xFFFEE2E2)
+                        : const Color(0xFFE2E8F0),
+                  ),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     Icon(
-                      Icons.person_off_outlined,
+                      isAbsent
+                          ? Icons.person_off_outlined
+                          : Icons.remove_circle_outline,
                       size: 16,
-                      color: Color(0xFFB91C1C),
+                      color: isAbsent
+                          ? const Color(0xFFB91C1C)
+                          : const Color(0xFF64748B),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Text(
-                      'Marked as Absent (Marks exempted)',
+                      isAbsent
+                          ? 'Marked as Absent (Marks exempted)'
+                          : 'Marked as Not Applicable (Exempted)',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFFB91C1C),
+                        color: isAbsent
+                            ? const Color(0xFFB91C1C)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ],
@@ -963,15 +1095,21 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
 
     final total = examProvider.students.length;
     final presentCount = examProvider.students
-        .where((s) => s.status != 'ABSENT')
+        .where((s) => s.status == 'PRESENT' && s.marks != null)
         .length;
     final absentCount = examProvider.students
         .where((s) => s.status == 'ABSENT')
         .length;
-    final enteredCount = examProvider.students
-        .where((s) => s.marks != null || s.status == 'ABSENT')
-        .length;
+    final naCount = examProvider.students.where((s) => s.status == 'NA').length;
+    final enteredCount = presentCount + absentCount + naCount;
     final pendingCount = total - enteredCount;
+    final unsavedCount = examProvider.students
+        .where(
+          (s) =>
+              !s.isSaved &&
+              (s.marks != null || s.status == 'ABSENT' || s.status == 'NA'),
+        )
+        .length;
     final progress = total > 0 ? (enteredCount / total) : 0.0;
 
     final filteredStudents = _getFilteredStudents(examProvider.students);
@@ -1029,6 +1167,34 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
                   ),
                 ],
               ),
+              actions: [
+                if (unsavedCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(Icons.save, size: 16),
+                      label: Text(
+                        'Save All ($unsavedCount)',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onPressed: () => _saveAllUnsavedMarks(),
+                    ),
+                  ),
+              ],
             ),
             body: examProvider.loading
                 ? const Center(child: CircularProgressIndicator())
@@ -1042,6 +1208,7 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
                         pendingCount: pendingCount,
                         presentCount: presentCount,
                         absentCount: absentCount,
+                        naCount: naCount,
                         progress: progress,
                       ),
 

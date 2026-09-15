@@ -30,16 +30,22 @@ class ClassResultsPage extends StatefulWidget {
 class _ClassResultsPageState extends State<ClassResultsPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  String _statusFilter = 'ALL'; // 'ALL', 'PASSED', 'FAILED'
+  String _statusFilter = 'ALL'; // 'ALL', 'PASSED', 'FAILED', 'NA'
   String _sortBy = 'RANK'; // 'RANK', 'PERCENTAGE', 'NAME', 'ROLL'
   int? _activeStudentFilterId;
   String? _activeStudentFilterName;
+  final Set<int> _expandedStudentIds = {};
 
   @override
   void initState() {
     super.initState();
     _activeStudentFilterId = widget.initialStudentId;
     _activeStudentFilterName = widget.initialStudentName;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && context.read<ExamProvider>().results.isEmpty) {
+        _refreshResults();
+      }
+    });
   }
 
   @override
@@ -83,7 +89,17 @@ class _ClassResultsPageState extends State<ClassResultsPage> {
         list = list.where((r) => r.isPassed).toList();
         break;
       case 'FAILED':
-        list = list.where((r) => !r.isPassed).toList();
+        list = list.where((r) => r.isFailed).toList();
+        break;
+      case 'NA':
+        list = list
+            .where(
+              (r) =>
+                  r.result?.toUpperCase() == 'N/A' ||
+                  r.result?.toUpperCase() == 'NA' ||
+                  r.status?.toUpperCase() == 'NA',
+            )
+            .toList();
         break;
       case 'ALL':
       default:
@@ -124,12 +140,21 @@ class _ClassResultsPageState extends State<ClassResultsPage> {
     // KPI Metrics calculation
     final totalStudents = allResults.length;
     final passCount = allResults.where((r) => r.isPassed).length;
-    final failCount = allResults
-        .where((r) => !r.isPassed && r.result?.toUpperCase() == 'FAIL')
+    final failCount = allResults.where((r) => r.isFailed).length;
+    final naCount = allResults
+        .where(
+          (r) =>
+              r.result?.toUpperCase() == 'N/A' ||
+              r.result?.toUpperCase() == 'NA' ||
+              r.status?.toUpperCase() == 'NA',
+        )
         .length;
-    final passPercentage = totalStudents > 0
-        ? ((passCount / totalStudents) * 100).toStringAsFixed(1)
-        : '0.0';
+    final evaluatedStudents = totalStudents - naCount;
+    final passPercentage = evaluatedStudents > 0
+        ? ((passCount / evaluatedStudents) * 100).toStringAsFixed(1)
+        : (totalStudents > 0
+            ? ((passCount / totalStudents) * 100).toStringAsFixed(1)
+            : '0.0');
 
     final validPercentages = allResults
         .where((r) => r.percentage != null)
@@ -550,6 +575,76 @@ class _ClassResultsPageState extends State<ClassResultsPage> {
                                   ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
+                              // Expand / Collapse All Button
+                              InkWell(
+                                onTap: () {
+                                  final allExpanded =
+                                      filteredResults.isNotEmpty &&
+                                      filteredResults.every(
+                                        (r) => _expandedStudentIds.contains(
+                                          r.studentId,
+                                        ),
+                                      );
+                                  setState(() {
+                                    if (allExpanded) {
+                                      _expandedStudentIds.clear();
+                                    } else {
+                                      _expandedStudentIds.addAll(
+                                        filteredResults.map((r) => r.studentId),
+                                      );
+                                    }
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  height: 42,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: const Color(0xFFCBD5E1),
+                                    ),
+                                  ),
+                                  child: Builder(
+                                    builder: (context) {
+                                      final allExpanded =
+                                          filteredResults.isNotEmpty &&
+                                          filteredResults.every(
+                                            (r) => _expandedStudentIds.contains(
+                                              r.studentId,
+                                            ),
+                                          );
+                                      return Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            allExpanded
+                                                ? Icons.unfold_less
+                                                : Icons.unfold_more,
+                                            size: 18,
+                                            color: const Color(0xFF64748B),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            allExpanded
+                                                ? 'Collapse'
+                                                : 'Expand',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF1E293B),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -584,6 +679,16 @@ class _ClassResultsPageState extends State<ClassResultsPage> {
                                 theme: theme,
                                 highlightColor: const Color(0xFFEF4444),
                               ),
+                              if (naCount > 0) ...[
+                                const SizedBox(width: 8),
+                                _buildFilterTab(
+                                  title: 'Exempted',
+                                  count: naCount,
+                                  filterValue: 'NA',
+                                  theme: theme,
+                                  highlightColor: const Color(0xFF64748B),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -669,7 +774,27 @@ class _ClassResultsPageState extends State<ClassResultsPage> {
                             final result = filteredResults[index];
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 10),
-                              child: _StudentResultCard(result: result),
+                              child: _StudentResultCard(
+                                result: result,
+                                isExpanded: _expandedStudentIds.contains(
+                                  result.studentId,
+                                ),
+                                onToggleExpand: () {
+                                  setState(() {
+                                    if (_expandedStudentIds.contains(
+                                      result.studentId,
+                                    )) {
+                                      _expandedStudentIds.remove(
+                                        result.studentId,
+                                      );
+                                    } else {
+                                      _expandedStudentIds.add(
+                                        result.studentId,
+                                      );
+                                    }
+                                  });
+                                },
+                              ),
                             );
                           }, childCount: filteredResults.length),
                         ),
@@ -803,23 +928,25 @@ class _ClassResultsPageState extends State<ClassResultsPage> {
   }
 }
 
-class _StudentResultCard extends StatefulWidget {
-  const _StudentResultCard({required this.result});
+class _StudentResultCard extends StatelessWidget {
+  const _StudentResultCard({
+    required this.result,
+    required this.isExpanded,
+    required this.onToggleExpand,
+  });
 
   final ExamResult result;
-
-  @override
-  State<_StudentResultCard> createState() => _StudentResultCardState();
-}
-
-class _StudentResultCardState extends State<_StudentResultCard> {
-  bool _expanded = false;
+  final bool isExpanded;
+  final VoidCallback onToggleExpand;
 
   @override
   Widget build(BuildContext context) {
-    final r = widget.result;
+    final r = result;
     final isPassed = r.isPassed;
-    final isResultNA = r.result?.toUpperCase() == 'N/A';
+    final isResultNA =
+        r.result?.toUpperCase() == 'N/A' ||
+        r.result?.toUpperCase() == 'NA' ||
+        r.status?.toUpperCase() == 'NA';
     final gradeColor = ExamHelpers.getGradeColor(r.grade);
     final resultColor = isResultNA
         ? const Color(0xFF64748B)
@@ -845,9 +972,7 @@ class _StudentResultCardState extends State<_StudentResultCard> {
           // Header Row
           InkWell(
             borderRadius: BorderRadius.circular(12),
-            onTap: hasSubjects
-                ? () => setState(() => _expanded = !_expanded)
-                : null,
+            onTap: hasSubjects ? onToggleExpand : null,
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
@@ -1000,7 +1125,7 @@ class _StudentResultCardState extends State<_StudentResultCard> {
                   if (hasSubjects) ...[
                     const SizedBox(width: 2),
                     Icon(
-                      _expanded
+                      isExpanded
                           ? Icons.keyboard_arrow_up_rounded
                           : Icons.keyboard_arrow_down_rounded,
                       size: 20,
@@ -1013,7 +1138,7 @@ class _StudentResultCardState extends State<_StudentResultCard> {
           ),
 
           // Expandable Subject Marks Breakdown
-          if (_expanded && hasSubjects) ...[
+          if (isExpanded && hasSubjects) ...[
             const Divider(height: 1, color: Color(0xFFF1F5F9)),
             Container(
               padding: const EdgeInsets.all(12),
@@ -1078,6 +1203,8 @@ class _StudentResultCardState extends State<_StudentResultCard> {
                             flex: 4,
                             child: Text(
                               sub.subject,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,

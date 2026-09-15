@@ -30,29 +30,45 @@ class ExamMarks {
   });
 
   factory ExamMarks.fromJson(Map<String, dynamic> json) => ExamMarks(
-    branchId: json['BranchId'],
-    examId: json['ExamId'],
-    organizationId: json['OrganizationId'],
-    studentId: json['StudentId'],
-    zoneId: json['ZoneId'],
-    createdBy: json['CreatedBy'],
+    branchId: json['BranchId'] is int
+        ? json['BranchId'] as int
+        : int.tryParse(json['BranchId']?.toString() ?? ''),
+    examId: json['ExamId'] is int
+        ? json['ExamId'] as int
+        : int.tryParse(json['ExamId']?.toString() ?? ''),
+    organizationId: json['OrganizationId'] is int
+        ? json['OrganizationId'] as int
+        : int.tryParse(json['OrganizationId']?.toString() ?? ''),
+    studentId: json['StudentId'] is int
+        ? json['StudentId'] as int
+        : int.tryParse(json['StudentId']?.toString() ?? ''),
+    zoneId: json['ZoneId'] is int
+        ? json['ZoneId'] as int
+        : int.tryParse(json['ZoneId']?.toString() ?? ''),
+    createdBy: json['CreatedBy']?.toString(),
     createdDate: json['CreatedDate'] == null
         ? null
-        : DateTime.parse(json['CreatedDate']),
-    isActive: json['IsActive'],
-    marks: json['Marks'],
-    remarks: json['Remarks'],
-    status: json['Status'],
-    updatedBy: json['UpdatedBy'],
+        : DateTime.tryParse(json['CreatedDate'].toString()),
+    isActive: json['IsActive'] is bool
+        ? json['IsActive'] as bool
+        : (json['IsActive']?.toString().toLowerCase() != 'false'),
+    marks: json['Marks'] is num
+        ? json['Marks'] as num
+        : num.tryParse(json['Marks']?.toString() ?? ''),
+    remarks: json['Remarks']?.toString(),
+    status: json['Status']?.toString(),
+    updatedBy: json['UpdatedBy']?.toString(),
     updatedDate: json['UpdatedDate'] == null
         ? null
-        : DateTime.parse(json['UpdatedDate']),
+        : DateTime.tryParse(json['UpdatedDate'].toString()),
     correction: json['Correction'] == null
         ? null
         : Correction.fromJson(json['Correction']),
     history: json['History'] == null
         ? []
-        : List<History>.from(json['History']!.map((x) => History.fromJson(x))),
+        : List<History>.from(
+            (json['History'] as List).map((x) => History.fromJson(x)),
+          ),
   );
 
   final int? branchId;
@@ -62,7 +78,7 @@ class ExamMarks {
   final int? examId;
   final List<History>? history;
   final bool? isActive;
-  final int? marks;
+  final num? marks;
   final int? organizationId;
   final String? remarks;
   final String? status;

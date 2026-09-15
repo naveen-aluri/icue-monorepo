@@ -94,7 +94,15 @@ class _MarksEntryPageState extends State<MarksEntryPage> {
           setState(() => selectedSchedule = null);
         }
       } else {
-        setState(() {});
+        final published = examProvider.schedules.where((s) {
+          final status = s.status?.trim().toLowerCase();
+          return status == 'published' || (status == null && s.isPublished);
+        }).toList();
+        if (published.length == 1) {
+          setState(() => selectedSchedule = published.first);
+        } else {
+          setState(() {});
+        }
       }
     }
   }
@@ -221,10 +229,18 @@ class _MarksEntryPageState extends State<MarksEntryPage> {
       classes.addAll(scheduleClassesMap.values);
     }
 
+    if (selectedSchedule != null && selectedClass == null && classes.isNotEmpty) {
+      selectedClass = classes.firstWhereOrNull(
+        (c) => c.classId == selectedSchedule!.classId,
+      );
+    }
+
     final matchingClass = classes.firstWhereOrNull(
       (c) => c.classId == selectedClass?.classId,
     );
-    final availableYears = ExamHelpers.getAvailableAcademicYears();
+    final availableYears = ExamHelpers.getAvailableAcademicYears(
+      includeAll: false,
+    );
     if (!availableYears.contains(selectedAcademicYear)) {
       availableYears.insert(0, selectedAcademicYear);
     }

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:icueadmin/models/exam_marks.dart';
 import 'package:icueadmin/models/exam_results.dart';
 import 'package:icueadmin/models/exam_schedule.dart';
+import 'package:icueadmin/models/marks.dart';
 import 'package:icueadmin/models/prep_exam.dart';
 import 'package:icueadmin/pages/exams/exam_helpers.dart';
 
@@ -441,5 +442,118 @@ void main() {
         expect(responseJson['ExamId'], equals(15));
       },
     );
+
+    test('ExamMarks handles decimal scores and string conversions safely', () {
+      final json = {
+        'StudentId': '32001',
+        'ExamId': '55',
+        'Marks': '42.5',
+        'Status': 'Active',
+        'Remarks': 'Good',
+      };
+
+      final marks = ExamMarks.fromJson(json);
+      expect(marks.studentId, equals(32001));
+      expect(marks.examId, equals(55));
+      expect(marks.marks, equals(42.5));
+      expect(marks.status, equals('Active'));
+      expect(marks.remarks, equals('Good'));
+
+      final out = marks.toJson();
+      expect(out['StudentId'], equals(32001));
+      expect(out['Marks'], equals(42.5));
+    });
+
+    test('ExamStudent correctly distinguishes pending vs saved students', () {
+      // Pending student: Active status from getExamStudents but no marks yet
+      final pendingJson = {
+        'Id': 101,
+        'Name': 'Rahul',
+        'Status': 'Active',
+        'Marks': null,
+      };
+      final pendingStudent = ExamStudent.fromJson(pendingJson);
+      expect(pendingStudent.isSaved, isFalse);
+      expect(pendingStudent.marks, isNull);
+      expect(pendingStudent.status, equals('PRESENT'));
+
+      // Saved student: has marks
+      final savedJson = {
+        'Id': 102,
+        'Name': 'Priya',
+        'Status': 'PRESENT',
+        'Marks': 28.5,
+      };
+      final savedStudent = ExamStudent.fromJson(savedJson);
+      expect(savedStudent.isSaved, isTrue);
+      expect(savedStudent.marks, equals(28.5));
+
+      // Saved student: ABSENT
+      final absentJson = {
+        'Id': 103,
+        'Name': 'Ankit',
+        'Status': 'ABSENT',
+      };
+      final absentStudent = ExamStudent.fromJson(absentJson);
+      expect(absentStudent.isSaved, isTrue);
+      expect(absentStudent.status, equals('ABSENT'));
+
+      // Saved student: NA
+      final naJson = {
+        'Id': 104,
+        'Name': 'Sara',
+        'Status': 'NA',
+      };
+      final naStudent = ExamStudent.fromJson(naJson);
+      expect(naStudent.isSaved, isTrue);
+      expect(naStudent.status, equals('NA'));
+    });
+
+    test('ExamResult and SubjectMark validate isPassed, isFailed, and displayPercentage', () {
+      final passResult = ExamResult(
+        studentId: 1,
+        studentName: 'Student 1',
+        result: 'PASSED',
+        percentage: 85.5,
+      );
+      expect(passResult.isPassed, isTrue);
+      expect(passResult.isFailed, isFalse);
+      expect(passResult.displayPercentage, equals('85.50%'));
+
+      final failResult = ExamResult(
+        studentId: 2,
+        studentName: 'Student 2',
+        result: 'FAIL',
+        percentage: 32.0,
+      );
+      expect(failResult.isPassed, isFalse);
+      expect(failResult.isFailed, isTrue);
+      expect(failResult.displayPercentage, equals('32%'));
+
+      final naResult = ExamResult(
+        studentId: 3,
+        studentName: 'Student 3',
+        result: 'N/A',
+      );
+      expect(naResult.isPassed, isFalse);
+      expect(naResult.isFailed, isFalse);
+
+      // SubjectMark pass check with marks >= passingMarks
+      final subPass = SubjectMark(
+        subjectId: 1,
+        subject: 'Math',
+        marks: 40,
+        passingMarks: 35,
+      );
+      expect(subPass.isPassed, isTrue);
+
+      final subFail = SubjectMark(
+        subjectId: 1,
+        subject: 'Math',
+        marks: 30,
+        passingMarks: 35,
+      );
+      expect(subFail.isPassed, isFalse);
+    });
   });
 }

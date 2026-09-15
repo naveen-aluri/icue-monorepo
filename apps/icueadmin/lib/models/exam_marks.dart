@@ -12,32 +12,48 @@ class ExamStudent {
     this.isSaved = false,
   });
 
-  factory ExamStudent.fromJson(Map<String, dynamic> json) => ExamStudent(
-    studentId: json['StudentId'] is int
-        ? json['StudentId']
-        : json['Id'] is int
-        ? json['Id']
-        : int.tryParse(
-                json['StudentId']?.toString() ?? json['Id']?.toString() ?? '',
-              ) ??
-              0,
-    classId: json['ClassId'] is int
-        ? json['ClassId']
-        : int.tryParse(json['ClassId']?.toString() ?? ''),
-    name: json['Name']?.toString() ?? json['StudentName']?.toString() ?? '',
-    rollNo: json['RollNo']?.toString(),
-    section: json['Section']?.toString(),
-    admissionNumber:
-        json['AdmissionNumber']?.toString() ?? json['AdmissionNo']?.toString(),
-    marks: json['Marks'] is num
-        ? json['Marks']
-        : num.tryParse(json['Marks']?.toString() ?? ''),
-    status: json['Status']?.toString().toUpperCase() ?? 'PRESENT',
-    remarks: json['Remarks']?.toString(),
-    isSaved: json['Marks'] != null ||
-        json['Status'] != null ||
-        (json['Remarks'] != null && json['Remarks'].toString().isNotEmpty),
-  );
+  factory ExamStudent.fromJson(Map<String, dynamic> json) {
+    final rawStatus = json['Status']?.toString().trim().toUpperCase();
+    final effectiveStatus = (rawStatus == 'ABSENT' || rawStatus == 'NA')
+        ? rawStatus!
+        : 'PRESENT';
+
+    final parsedMarks = json['Marks'] is num
+        ? json['Marks'] as num
+        : num.tryParse(json['Marks']?.toString() ?? '');
+
+    final hasMarks = parsedMarks != null;
+    final isExplicitAttendance = rawStatus == 'ABSENT' || rawStatus == 'NA';
+    final isExplicitSaved = json['IsSaved'] == true ||
+        json['IsSaved'] == 1 ||
+        json['IsSaved']?.toString().toLowerCase() == 'true';
+
+    return ExamStudent(
+      studentId: json['StudentId'] is int
+          ? json['StudentId'] as int
+          : json['Id'] is int
+          ? json['Id'] as int
+          : int.tryParse(
+                  json['StudentId']?.toString() ??
+                      json['Id']?.toString() ??
+                      '',
+                ) ??
+                0,
+      classId: json['ClassId'] is int
+          ? json['ClassId'] as int
+          : int.tryParse(json['ClassId']?.toString() ?? ''),
+      name: json['Name']?.toString() ?? json['StudentName']?.toString() ?? '',
+      rollNo: json['RollNo']?.toString(),
+      section: json['Section']?.toString(),
+      admissionNumber:
+          json['AdmissionNumber']?.toString() ??
+          json['AdmissionNo']?.toString(),
+      marks: parsedMarks,
+      status: effectiveStatus,
+      remarks: json['Remarks']?.toString(),
+      isSaved: isExplicitSaved || hasMarks || isExplicitAttendance,
+    );
+  }
 
   final int studentId;
   final int? classId;
