@@ -36,7 +36,7 @@ class ApiClient {
           }..removeWhere((_, v) => v == null);
 
           if (options.data is Map) {
-            options.data = {...(options.data as Map), ...extraFields};
+            options.data = {...extraFields, ...(options.data as Map)};
           } else if (options.data is FormData) {
             final formData = options.data as FormData;
             final existingFields = {

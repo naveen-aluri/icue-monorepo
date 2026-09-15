@@ -15,6 +15,9 @@ import '../../pages/drivers/driver_docs_page.dart';
 import '../../pages/drivers/driver_info_page.dart';
 import '../../pages/drivers/drivers_page.dart';
 import '../../pages/drop_boarding/drop_boarding_page.dart';
+import '../../pages/exams/exam_mgmt_page.dart';
+import '../../pages/exams/exam_results_page.dart';
+import '../../pages/exams/marks_entry_page.dart';
 import '../../pages/fuel/fuel_page.dart';
 import '../../pages/gatepass/gatepass_page.dart';
 import '../../pages/gatepass/generate_gatepass_page.dart';
@@ -433,6 +436,50 @@ final GoRouter appRouter = GoRouter(
               builder: (context, state) => const ScreenTracker(
                 screenName: 'branches-page',
                 child: DropBoardingPage(),
+              ),
+            ),
+
+            /// Exam Management Route
+            GoRoute(
+              parentNavigatorKey: navigatorKey,
+              path: 'layout.exams',
+              builder: (context, state) => const ScreenTracker(
+                screenName: 'exam-mgmt-page',
+                child: ExamMgmtPage(),
+              ),
+              routes: [
+                GoRoute(
+                  parentNavigatorKey: navigatorKey,
+                  path: 'layout.marksentry',
+                  builder: (context, state) => const ScreenTracker(
+                    screenName: 'marks-entry-page',
+                    child: MarksEntryPage(),
+                  ),
+                ),
+                GoRoute(
+                  parentNavigatorKey: navigatorKey,
+                  path: 'layout.exam_results',
+                  builder: (context, state) => const ScreenTracker(
+                    screenName: 'exam-results-page',
+                    child: ExamResultsPage(),
+                  ),
+                ),
+              ],
+            ),
+            GoRoute(
+              parentNavigatorKey: navigatorKey,
+              path: 'layout.marksentry',
+              builder: (context, state) => const ScreenTracker(
+                screenName: 'marks-entry-page',
+                child: MarksEntryPage(),
+              ),
+            ),
+            GoRoute(
+              parentNavigatorKey: navigatorKey,
+              path: 'layout.exam_results',
+              builder: (context, state) => const ScreenTracker(
+                screenName: 'exam-results-page',
+                child: ExamResultsPage(),
               ),
             ),
           ],
