@@ -59,6 +59,8 @@ class HiveService {
     Hive.registerAdapter(RoleActionsAdapter());
     Hive.registerAdapter(UserInfoAdapter());
     Hive.registerAdapter(UserClassAdapter());
+    Hive.registerAdapter(SubjectInfoAdapter());
+    Hive.registerAdapter(SubjectAdapter());
     Hive.registerAdapter(RoleAdapter());
     Hive.registerAdapter(StandardsAdapter());
     Hive.registerAdapter(SectionAdapter());

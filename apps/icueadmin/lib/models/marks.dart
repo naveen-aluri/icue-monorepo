@@ -1,0 +1,175 @@
+// To parse this JSON data, do
+//
+//     final examMarks = examMarksFromJson(jsonString);
+
+import 'dart:convert';
+
+List<ExamMarks> examMarksFromJson(String str) =>
+    List<ExamMarks>.from(json.decode(str).map((x) => ExamMarks.fromJson(x)));
+
+String examMarksToJson(List<ExamMarks> data) =>
+    json.encode(List<dynamic>.from(data.map((x) => x.toJson())));
+
+class ExamMarks {
+  ExamMarks({
+    this.branchId,
+    this.examId,
+    this.organizationId,
+    this.studentId,
+    this.zoneId,
+    this.createdBy,
+    this.createdDate,
+    this.isActive,
+    this.marks,
+    this.remarks,
+    this.status,
+    this.updatedBy,
+    this.updatedDate,
+    this.correction,
+    this.history,
+  });
+
+  factory ExamMarks.fromJson(Map<String, dynamic> json) => ExamMarks(
+    branchId: json['BranchId'],
+    examId: json['ExamId'],
+    organizationId: json['OrganizationId'],
+    studentId: json['StudentId'],
+    zoneId: json['ZoneId'],
+    createdBy: json['CreatedBy'],
+    createdDate: json['CreatedDate'] == null
+        ? null
+        : DateTime.parse(json['CreatedDate']),
+    isActive: json['IsActive'],
+    marks: json['Marks'],
+    remarks: json['Remarks'],
+    status: json['Status'],
+    updatedBy: json['UpdatedBy'],
+    updatedDate: json['UpdatedDate'] == null
+        ? null
+        : DateTime.parse(json['UpdatedDate']),
+    correction: json['Correction'] == null
+        ? null
+        : Correction.fromJson(json['Correction']),
+    history: json['History'] == null
+        ? []
+        : List<History>.from(json['History']!.map((x) => History.fromJson(x))),
+  );
+
+  final int? branchId;
+  final Correction? correction;
+  final String? createdBy;
+  final DateTime? createdDate;
+  final int? examId;
+  final List<History>? history;
+  final bool? isActive;
+  final int? marks;
+  final int? organizationId;
+  final String? remarks;
+  final String? status;
+  final int? studentId;
+  final String? updatedBy;
+  final DateTime? updatedDate;
+  final int? zoneId;
+
+  Map<String, dynamic> toJson() => {
+    'BranchId': branchId,
+    'ExamId': examId,
+    'OrganizationId': organizationId,
+    'StudentId': studentId,
+    'ZoneId': zoneId,
+    'CreatedBy': createdBy,
+    'CreatedDate': createdDate?.toIso8601String(),
+    'IsActive': isActive,
+    'Marks': marks,
+    'Remarks': remarks,
+    'Status': status,
+    'UpdatedBy': updatedBy,
+    'UpdatedDate': updatedDate?.toIso8601String(),
+    'Correction': correction?.toJson(),
+    'History': history == null
+        ? []
+        : List<dynamic>.from(history!.map((x) => x.toJson())),
+  };
+}
+
+class Correction {
+  Correction({this.status, this.approvedBy, this.approvedDate});
+
+  factory Correction.fromJson(Map<String, dynamic> json) => Correction(
+    status: json['Status'],
+    approvedBy: json['ApprovedBy'],
+    approvedDate: json['ApprovedDate'] == null
+        ? null
+        : DateTime.parse(json['ApprovedDate']),
+  );
+
+  final String? approvedBy;
+  final DateTime? approvedDate;
+  final String? status;
+
+  Map<String, dynamic> toJson() => {
+    'Status': status,
+    'ApprovedBy': approvedBy,
+    'ApprovedDate': approvedDate?.toIso8601String(),
+  };
+}
+
+class History {
+  History({
+    this.oldMarks,
+    this.oldStatus,
+    this.correctionMarks,
+    this.correctionMarkStatus,
+    this.reason,
+    this.requestedBy,
+    this.requestedDate,
+    this.decision,
+    this.approvedBy,
+    this.approvedDate,
+    this.remarks,
+  });
+
+  factory History.fromJson(Map<String, dynamic> json) => History(
+    oldMarks: json['OldMarks'],
+    oldStatus: json['OldStatus'],
+    correctionMarks: json['CorrectionMarks'],
+    correctionMarkStatus: json['CorrectionMarkStatus'],
+    reason: json['Reason'],
+    requestedBy: json['RequestedBy'],
+    requestedDate: json['RequestedDate'] == null
+        ? null
+        : DateTime.parse(json['RequestedDate']),
+    decision: json['Decision'],
+    approvedBy: json['ApprovedBy'],
+    approvedDate: json['ApprovedDate'] == null
+        ? null
+        : DateTime.parse(json['ApprovedDate']),
+    remarks: json['Remarks'],
+  );
+
+  final String? approvedBy;
+  final DateTime? approvedDate;
+  final String? correctionMarkStatus;
+  final int? correctionMarks;
+  final String? decision;
+  final int? oldMarks;
+  final String? oldStatus;
+  final String? reason;
+  final String? remarks;
+  final String? requestedBy;
+  final DateTime? requestedDate;
+
+  Map<String, dynamic> toJson() => {
+    'OldMarks': oldMarks,
+    'OldStatus': oldStatus,
+    'CorrectionMarks': correctionMarks,
+    'CorrectionMarkStatus': correctionMarkStatus,
+    'Reason': reason,
+    'RequestedBy': requestedBy,
+    'RequestedDate': requestedDate?.toIso8601String(),
+    'Decision': decision,
+    'ApprovedBy': approvedBy,
+    'ApprovedDate': approvedDate?.toIso8601String(),
+    'Remarks': remarks,
+  };
+}

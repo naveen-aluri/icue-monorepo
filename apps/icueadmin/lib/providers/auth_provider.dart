@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
@@ -109,6 +111,7 @@ class AuthProvider extends ChangeNotifier {
     if (!isSplash) AppUtils.showLoadingDialog(context, 'Please wait...');
     try {
       final response = await _apiClient.post('/v1.0/getActionsByRole');
+      log('getActionsByRole response: ${response.data}');
       if (response.statusCode == 202) {
         roleActions = [];
       } else {
