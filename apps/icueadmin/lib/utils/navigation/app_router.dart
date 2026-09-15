@@ -15,6 +15,11 @@ import '../../pages/drivers/driver_docs_page.dart';
 import '../../pages/drivers/driver_info_page.dart';
 import '../../pages/drivers/drivers_page.dart';
 import '../../pages/drop_boarding/drop_boarding_page.dart';
+import '../../pages/facility_management/basic_facility_task_detail_page.dart';
+import '../../pages/facility_management/facility_qr_scanner_page.dart';
+import '../../pages/facility_management/facility_qr_tasks_page.dart';
+import '../../pages/facility_management/facility_task_detail_page.dart';
+import '../../pages/facility_management/facility_tasks_page.dart';
 import '../../pages/fuel/fuel_page.dart';
 import '../../pages/gatepass/gatepass_page.dart';
 import '../../pages/gatepass/generate_gatepass_page.dart';
@@ -433,6 +438,72 @@ final GoRouter appRouter = GoRouter(
               builder: (context, state) => const ScreenTracker(
                 screenName: 'branches-page',
                 child: DropBoardingPage(),
+              ),
+            ),
+
+            /// Facility Management / Cleaner Tasks
+            GoRoute(
+              parentNavigatorKey: navigatorKey,
+              path: 'layout.fm_mycleaningtasks',
+              builder: (context, state) => const ScreenTracker(
+                screenName: 'my-cleaning-tasks-page',
+                child: MyCleaningTasksPage(),
+              ),
+            ),
+            GoRoute(
+              parentNavigatorKey: navigatorKey,
+              path: 'facility-task-detail',
+              builder: (context, state) => ScreenTracker(
+                screenName: 'facility-task-detail-page',
+                parameters: {
+                  'taskId': state.uri.queryParameters['taskId'] ?? '',
+                },
+                child: FacilityTaskDetailPage(
+                  taskId:
+                      int.tryParse(state.uri.queryParameters['taskId'] ?? '') ??
+                      (state.extra is int ? state.extra as int : 0),
+                ),
+              ),
+            ),
+            GoRoute(
+              parentNavigatorKey: navigatorKey,
+              path: 'facility-qr-tasks',
+              builder: (context, state) => ScreenTracker(
+                screenName: 'facility-qr-tasks-page',
+                parameters: {
+                  'qrCode': state.uri.queryParameters['qrCode'] ?? '',
+                },
+                child: FacilityQrTasksPage(
+                  qrCode:
+                      state.uri.queryParameters['qrCode'] ??
+                      (state.extra is String ? state.extra as String : ''),
+                ),
+              ),
+            ),
+            GoRoute(
+              parentNavigatorKey: navigatorKey,
+              path: 'facility-qr-scanner',
+              builder: (context, state) => ScreenTracker(
+                screenName: 'facility-qr-scanner-page',
+                child: FacilityQrScannerPage(
+                  isBasic: state.uri.queryParameters['mode'] == 'basic',
+                ),
+              ),
+            ),
+            GoRoute(
+              parentNavigatorKey: navigatorKey,
+              path: 'basic-facility-task-detail',
+              builder: (context, state) => ScreenTracker(
+                screenName: 'basic-facility-task-detail-page',
+                parameters: {
+                  'qrCode': state.uri.queryParameters['qrCode'] ?? '',
+                  'taskId': state.uri.queryParameters['taskId'] ?? '',
+                },
+                child: BasicFacilityTaskDetailPage(
+                  qrCode: state.uri.queryParameters['qrCode'],
+                  taskId: int.tryParse(state.uri.queryParameters['taskId'] ?? '') ??
+                      (state.extra is int ? state.extra as int : null),
+                ),
               ),
             ),
           ],
