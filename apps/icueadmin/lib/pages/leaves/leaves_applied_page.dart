@@ -15,12 +15,79 @@ class LeavesAppliedPage extends StatefulWidget {
   State<LeavesAppliedPage> createState() => _LeavesAppliedPageState();
 }
 
+final DateFormat _dateFormat = DateFormat('dd MMM yyyy');
+
+Color _getStatusColor(String status) {
+  switch (status.toLowerCase()) {
+    case 'approved':
+      return const Color(0xFF059669);
+    case 'rejected':
+      return const Color(0xFFDC2626);
+    case 'requested':
+    default:
+      return const Color(0xFFD97706);
+  }
+}
+
+Color _getStatusBgColor(String status) {
+  switch (status.toLowerCase()) {
+    case 'approved':
+      return const Color(0xFFECFDF5);
+    case 'rejected':
+      return const Color(0xFFFEF2F2);
+    case 'requested':
+    default:
+      return const Color(0xFFFEF3C7);
+  }
+}
+
+IconData _getStatusIcon(String status) {
+  switch (status.toLowerCase()) {
+    case 'approved':
+      return Icons.check_circle_outline_rounded;
+    case 'rejected':
+      return Icons.cancel_outlined;
+    case 'requested':
+    default:
+      return Icons.schedule_rounded;
+  }
+}
+
+IconData _getCategoryIcon(String leaveType) {
+  final type = leaveType.toLowerCase();
+  if (type.contains('casual') || type.contains('(cl)')) {
+    return Icons.beach_access_rounded;
+  } else if (type.contains('sick') || type.contains('medical')) {
+    return Icons.medical_services_rounded;
+  } else if (type.contains('earned') || type.contains('(el)')) {
+    return Icons.verified_rounded;
+  } else if (type.contains('maternity')) {
+    return Icons.family_restroom_rounded;
+  } else if (type.contains('paternity')) {
+    return Icons.child_care_rounded;
+  } else if (type.contains('bereavement')) {
+    return Icons.favorite_border_rounded;
+  } else if (type.contains('marriage')) {
+    return Icons.celebration_rounded;
+  }
+  return Icons.event_note_rounded;
+}
+
+String _formatDateRange(DateTime? from, DateTime? to) {
+  if (from == null && to == null) return 'Dates not specified';
+  if (from != null && to == null) return _dateFormat.format(from);
+  if (from == null && to != null) return _dateFormat.format(to);
+
+  final fromStr = _dateFormat.format(from!);
+  final toStr = _dateFormat.format(to!);
+  if (fromStr == toStr) return fromStr;
+  return '$fromStr – $toStr';
+}
+
 class _LeavesAppliedPageState extends State<LeavesAppliedPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final List<String> _statuses = const ['Requested', 'Approved', 'Rejected'];
-
-  final DateFormat _dateFormat = DateFormat('dd MMM yyyy');
 
   @override
   void initState() {
@@ -38,12 +105,11 @@ class _LeavesAppliedPageState extends State<LeavesAppliedPage>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final initialStatus = _statuses[_tabController.index];
-      context.read<LeaveProvider>().fetchAppliedLeaves(status: initialStatus);
+      context.read<LeaveProvider>().setAppliedStatus(initialStatus);
     });
   }
 
   void _handleTabChange() {
-    if (_tabController.indexIsChanging) return;
     final status = _statuses[_tabController.index];
     context.read<LeaveProvider>().setAppliedStatus(status);
   }
@@ -53,73 +119,6 @@ class _LeavesAppliedPageState extends State<LeavesAppliedPage>
     _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return const Color(0xFF059669);
-      case 'rejected':
-        return const Color(0xFFDC2626);
-      case 'requested':
-      default:
-        return const Color(0xFFD97706);
-    }
-  }
-
-  Color _getStatusBgColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return const Color(0xFFECFDF5);
-      case 'rejected':
-        return const Color(0xFFFEF2F2);
-      case 'requested':
-      default:
-        return const Color(0xFFFEF3C7);
-    }
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return Icons.check_circle_outline_rounded;
-      case 'rejected':
-        return Icons.cancel_outlined;
-      case 'requested':
-      default:
-        return Icons.schedule_rounded;
-    }
-  }
-
-  IconData _getCategoryIcon(String leaveType) {
-    final type = leaveType.toLowerCase();
-    if (type.contains('casual') || type.contains('(cl)')) {
-      return Icons.beach_access_rounded;
-    } else if (type.contains('sick') || type.contains('medical')) {
-      return Icons.medical_services_rounded;
-    } else if (type.contains('earned') || type.contains('(el)')) {
-      return Icons.verified_rounded;
-    } else if (type.contains('maternity')) {
-      return Icons.family_restroom_rounded;
-    } else if (type.contains('paternity')) {
-      return Icons.child_care_rounded;
-    } else if (type.contains('bereavement')) {
-      return Icons.favorite_border_rounded;
-    } else if (type.contains('marriage')) {
-      return Icons.celebration_rounded;
-    }
-    return Icons.event_note_rounded;
-  }
-
-  String _formatDateRange(DateTime? from, DateTime? to) {
-    if (from == null && to == null) return 'Dates not specified';
-    if (from != null && to == null) return _dateFormat.format(from);
-    if (from == null && to != null) return _dateFormat.format(to);
-
-    final fromStr = _dateFormat.format(from!);
-    final toStr = _dateFormat.format(to!);
-    if (fromStr == toStr) return fromStr;
-    return '$fromStr – $toStr';
   }
 
   @override
@@ -215,105 +214,135 @@ class _LeavesAppliedPageState extends State<LeavesAppliedPage>
           ),
         ),
       ),
-      body: Consumer<LeaveProvider>(
-        builder: (context, provider, _) {
-          return TabBarView(
-            controller: _tabController,
-            children: _statuses.map((status) {
-              return _buildTabContent(context, provider, status);
-            }).toList(),
+      body: TabBarView(
+        controller: _tabController,
+        children: _statuses.map((status) {
+          return _AppliedLeavesTabContent(
+            key: ValueKey(status),
+            status: status,
           );
-        },
+        }).toList(),
       ),
     );
   }
+}
 
-  Widget _buildTabContent(
-    BuildContext context,
-    LeaveProvider provider,
-    String status,
-  ) {
-    final list = provider.currentAppliedLeaves
-        .where((l) => l.status.toLowerCase() == status.toLowerCase())
-        .toList();
+class _AppliedLeavesTabContent extends StatefulWidget {
+  const _AppliedLeavesTabContent({super.key, required this.status});
 
-    if (provider.loadingApplied && list.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text(
-              'Loading applications...',
-              style: TextStyle(color: Color(0xFF64748B)),
-            ),
-          ],
-        ),
-      );
-    }
+  final String status;
 
-    if (provider.errorMessage != null && list.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline_rounded,
-                size: 56,
-                color: Color(0xFFEF4444),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                provider.errorMessage!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF0F172A),
+  @override
+  State<_AppliedLeavesTabContent> createState() =>
+      _AppliedLeavesTabContentState();
+}
+
+class _AppliedLeavesTabContentState extends State<_AppliedLeavesTabContent>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final status = widget.status;
+
+    return Consumer<LeaveProvider>(
+      builder: (context, provider, _) {
+        final list = provider.getAppliedLeaves(status);
+        final isLoading = provider.isAppliedLeavesLoading(status);
+        final isLoaded = provider.hasLoadedAppliedLeaves(status);
+        final errorMessage = provider.getAppliedLeavesError(status);
+
+        // If loading (or if active tab has not loaded yet), show loading spinner
+        if (isLoading ||
+            (!isLoaded && provider.selectedAppliedStatus == status)) {
+          return const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text(
+                  'Loading applications...',
+                  style: TextStyle(color: Color(0xFF64748B)),
                 ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () {
-                  provider.fetchAppliedLeaves(status: status, refresh: true);
-                },
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+              ],
+            ),
+          );
+        }
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        await provider.fetchAppliedLeaves(status: status, refresh: true);
-      },
-      child: list.isEmpty
-          ? SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.65,
-                child: Center(
-                  child: NoDataWidget(
-                    msg: 'No $status leave applications found.',
+        // If not loaded and not active (offscreen tab in TabBarView), keep blank without running spinners
+        if (!isLoaded) {
+          return const SizedBox.shrink();
+        }
+
+        if (errorMessage != null && list.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 56,
+                    color: Color(0xFFEF4444),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  Text(
+                    errorMessage,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      provider.fetchAppliedLeaves(
+                        status: status,
+                        refresh: true,
+                      );
+                    },
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Retry'),
+                  ),
+                ],
               ),
-            )
-          : ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-              itemCount: list.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                return _buildApplicationCard(context, list[index]);
-              },
             ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            await provider.fetchAppliedLeaves(status: status, refresh: true);
+          },
+          child: list.isEmpty
+              ? SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.65,
+                    child: Center(
+                      child: NoDataWidget(
+                        msg: 'No $status leave applications found.',
+                      ),
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                  itemCount: list.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    return _buildApplicationCard(context, list[index]);
+                  },
+                ),
+        );
+      },
     );
   }
 

@@ -85,44 +85,125 @@ class _LeaveBalancePageState extends State<LeaveBalancePage> {
           Consumer<LeaveProvider>(
             builder: (context, provider, _) {
               final currentYear = DateTime.now().year;
-              final years = [currentYear - 1, currentYear, currentYear + 1];
+              final baseYears = {
+                currentYear - 2,
+                currentYear - 1,
+                currentYear,
+                currentYear + 1,
+              };
+              if (!baseYears.contains(provider.selectedYear)) {
+                baseYears.add(provider.selectedYear);
+              }
+              final years = baseYears.toList()..sort();
+
               return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: provider.selectedYear,
-                    icon: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 20,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    items: years.map((year) {
-                      return DropdownMenuItem<int>(
-                        value: year,
-                        child: Text(
-                          '$year',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                padding: const EdgeInsets.only(right: 16),
+                child: Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: PopupMenuButton<int>(
+                        tooltip: 'Select Year',
+                        elevation: 6,
+                        shadowColor: Colors.black.withValues(alpha: 0.2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        color: Colors.white,
+                        position: PopupMenuPosition.under,
+                        offset: const Offset(0, 6),
+                        onSelected: (year) {
+                          provider.setYear(year);
+                        },
+                        itemBuilder: (context) {
+                          final theme = Theme.of(context);
+                          return years.map((year) {
+                            final isSelected = year == provider.selectedYear;
+                            return PopupMenuItem<int>(
+                              value: year,
+                              height: 42,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isSelected
+                                        ? Icons.calendar_month_rounded
+                                        : Icons.calendar_today_outlined,
+                                    size: 16,
+                                    color: isSelected
+                                        ? theme.primaryColor
+                                        : const Color(0xFF94A3B8),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    '$year',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? theme.primaryColor
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  if (isSelected)
+                                    Icon(
+                                      Icons.check_rounded,
+                                      size: 18,
+                                      color: theme.primaryColor,
+                                    ),
+                                ],
+                              ),
+                            );
+                          }).toList();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.calendar_today_rounded,
+                                size: 13,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${provider.selectedYear}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    }).toList(),
-                    onChanged: (year) {
-                      if (year != null) {
-                        provider.setYear(year);
-                      }
-                    },
+                      ),
+                    ),
                   ),
                 ),
               );
-            },
-          ),
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: () {
-              context.read<LeaveProvider>().fetchLeaveBalances(refresh: true);
             },
           ),
         ],

@@ -138,13 +138,13 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
       leavetypeFid: selectedType.leavetypeFid,
       leavetype: selectedType.leavetype,
       leavebalance: selectedType.balanceLeave,
-      employeeId: empId,
+      employeeId: 241,
       fromdate: _apiDateFormat.format(_fromDate),
       todate: _apiDateFormat.format(_isHalfDay ? _fromDate : _toDate),
-      noofdays: _isHalfDay ? 0.5 : (_toDate.difference(_fromDate).inDays + 1),
+      noofdays: _isHalfDay ? 1 : (_toDate.difference(_fromDate).inDays + 1),
       reason: _reasonController.text.trim(),
       halfday: _isHalfDay,
-      createdby: empId,
+      createdby: 241,
     );
 
     final provider = context.read<LeaveProvider>();

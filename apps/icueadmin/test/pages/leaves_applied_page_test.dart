@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +12,7 @@ class MockHrmsApiClient extends Fake implements HrmsApiClient {
   String? lastGetPath;
   dynamic nextResponseData;
   int nextStatusCode = 200;
+  Completer<Response>? pendingGetCompleter;
 
   @override
   Future<Response> get(
@@ -18,6 +21,9 @@ class MockHrmsApiClient extends Fake implements HrmsApiClient {
     Map<String, dynamic>? headers,
   }) async {
     lastGetPath = path;
+    if (pendingGetCompleter != null) {
+      return pendingGetCompleter!.future;
+    }
     return Response(
       requestOptions: RequestOptions(path: path),
       data: nextResponseData ?? [],
@@ -142,5 +148,60 @@ void main() {
       expect(find.text('Marriage Leave (ML)'), findsOneWidget);
       expect(find.text('Remarks: Staff shortage on date'), findsOneWidget);
     });
+
+    testWidgets(
+      'shows loading indicator instead of No Data when switching tabs',
+      (tester) async {
+        mockHrmsApiClient.nextResponseData = requestedData;
+        await leaveProvider.fetchAppliedLeaves(
+          employeeId: 241,
+          status: 'Requested',
+        );
+
+        await tester.pumpWidget(buildTestableWidget(const LeavesAppliedPage()));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Maternity Leave (MAL)'), findsOneWidget);
+
+        // Setup a pending completer for the Approved GET request
+        final completer = Completer<Response>();
+        mockHrmsApiClient.pendingGetCompleter = completer;
+
+        // Tap the 'Approved' tab
+        await tester.tap(find.widgetWithText(Tab, 'Approved'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 150));
+
+        // While Approved has not finished loading, verify it shows loading and NOT NoDataWidget
+        expect(
+          find.text('No Approved leave applications found.'),
+          findsNothing,
+        );
+        expect(
+          find.byType(CircularProgressIndicator, skipOffstage: false),
+          findsOneWidget,
+        );
+
+        // Now complete the response with empty data
+        completer.complete(
+          Response(
+            requestOptions: RequestOptions(
+              path: '/api/v1/leaves/by-id-status/241/Approved',
+            ),
+            data: [],
+            statusCode: 200,
+          ),
+        );
+        mockHrmsApiClient.pendingGetCompleter = null;
+
+        await tester.pumpAndSettle();
+
+        // After loading finishes, NoDataWidget should show
+        expect(
+          find.text('No Approved leave applications found.'),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }

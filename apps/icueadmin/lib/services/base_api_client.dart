@@ -105,7 +105,10 @@ abstract class BaseApiClient {
       onError: (error, handler) async {
         final path = error.requestOptions.path;
         if (kDebugMode) {
-          log('[$clientName] ERROR[${error.response?.statusCode}] => $path');
+          log(
+            '[$clientName] ERROR[${error.response?.statusCode}] => $path'
+            '${error.response?.data != null ? " => DATA: ${error.response?.data}" : ""}',
+          );
         }
 
         final isExempt = errorExemptPaths.any(
@@ -317,6 +320,8 @@ abstract class BaseApiClient {
       msg = data;
     } else if (data is Map && data['message'] != null) {
       msg = data['message'].toString();
+    } else if (data is Map && data['error'] != null) {
+      msg = data['error'].toString();
     } else {
       msg = error.message ?? handleError(error) ?? 'Unexpected error occurred.';
     }

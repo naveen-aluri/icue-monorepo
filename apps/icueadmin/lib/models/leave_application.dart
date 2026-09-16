@@ -3,8 +3,12 @@ import 'dart:convert';
 List<LeaveApplication> leaveApplicationListFromJson(dynamic data) {
   if (data == null) return [];
   if (data is String) {
-    final decoded = json.decode(data);
-    return leaveApplicationListFromJson(decoded);
+    try {
+      final decoded = json.decode(data);
+      return leaveApplicationListFromJson(decoded);
+    } catch (_) {
+      return [];
+    }
   }
   if (data is List) {
     return data

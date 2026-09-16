@@ -3,8 +3,12 @@ import 'dart:convert';
 List<LeaveBalance> leaveBalanceListFromJson(dynamic data) {
   if (data == null) return [];
   if (data is String) {
-    final decoded = json.decode(data);
-    return leaveBalanceListFromJson(decoded);
+    try {
+      final decoded = json.decode(data);
+      return leaveBalanceListFromJson(decoded);
+    } catch (_) {
+      return [];
+    }
   }
   if (data is List) {
     return data

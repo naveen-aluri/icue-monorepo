@@ -15,7 +15,6 @@ class LeaveProvider extends ChangeNotifier {
 
   bool _loading = false;
   bool _submitting = false;
-  bool _loadingApplied = false;
   String? _errorMessage;
   List<LeaveBalance> _leaveBalances = [];
   int _selectedYear = DateTime.now().year;
@@ -27,20 +26,67 @@ class LeaveProvider extends ChangeNotifier {
     'Approved': [],
     'Rejected': [],
   };
+  final Map<String, bool> _loadingAppliedByStatus = {
+    'Requested': false,
+    'Approved': false,
+    'Rejected': false,
+  };
+  final Map<String, bool> _hasLoadedAppliedByStatus = {
+    'Requested': false,
+    'Approved': false,
+    'Rejected': false,
+  };
+  final Map<String, String?> _appliedErrorsByStatus = {
+    'Requested': null,
+    'Approved': null,
+    'Rejected': null,
+  };
+
+  String _normalizeStatus(String status) {
+    if (status.isEmpty) return 'Requested';
+    final lower = status.toLowerCase();
+    if (lower == 'approved') return 'Approved';
+    if (lower == 'rejected') return 'Rejected';
+    return 'Requested';
+  }
 
   bool get loading => _loading;
   bool get submitting => _submitting;
-  bool get loadingApplied => _loadingApplied;
-  String? get errorMessage => _errorMessage;
+  bool get loadingApplied => isAppliedLeavesLoading(_selectedAppliedStatus);
+  String? get errorMessage =>
+      _appliedErrorsByStatus[_selectedAppliedStatus] ?? _errorMessage;
   List<LeaveBalance> get leaveBalances => _leaveBalances;
   int get selectedYear => _selectedYear;
   bool get onlyAccessibleLeaves => _onlyAccessibleLeaves;
   String get selectedAppliedStatus => _selectedAppliedStatus;
 
   List<LeaveApplication> get currentAppliedLeaves =>
-      _appliedLeaves[_selectedAppliedStatus] ?? [];
+      getAppliedLeaves(_selectedAppliedStatus);
 
-  int appliedCount(String status) => _appliedLeaves[status]?.length ?? 0;
+  List<LeaveApplication> getAppliedLeaves(String status) {
+    final key = _normalizeStatus(status);
+    return _appliedLeaves[key] ?? [];
+  }
+
+  bool isAppliedLeavesLoading(String status) {
+    final key = _normalizeStatus(status);
+    return _loadingAppliedByStatus[key] ?? false;
+  }
+
+  bool hasLoadedAppliedLeaves(String status) {
+    final key = _normalizeStatus(status);
+    return _hasLoadedAppliedByStatus[key] ?? false;
+  }
+
+  String? getAppliedLeavesError(String status) {
+    final key = _normalizeStatus(status);
+    return _appliedErrorsByStatus[key];
+  }
+
+  int appliedCount(String status) {
+    final key = _normalizeStatus(status);
+    return (_appliedLeaves[key] ?? []).length;
+  }
 
   List<LeaveBalance> get displayedLeaves {
     if (_onlyAccessibleLeaves) {
@@ -78,8 +124,8 @@ class LeaveProvider extends ChangeNotifier {
     final targetYear = year ?? _selectedYear;
     _selectedYear = targetYear;
 
-    final resolvedEmpId = employeeId ?? HiveService.currentUser?.id;
-    if (resolvedEmpId == null || resolvedEmpId == 0) {
+    final resolvedEmpId = employeeId ?? HiveService.currentUser?.id ?? 241;
+    if (resolvedEmpId == 0) {
       _errorMessage = 'Employee profile not found. Please log in again.';
       notifyListeners();
       return;
@@ -89,7 +135,7 @@ class LeaveProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final path = '/api/v1/leaves/by-empid/$resolvedEmpId/$targetYear';
+    final path = '/api/v1/leaves/by-empid/241/$targetYear';
 
     try {
       final response = await _hrmsApiClient.get(path);
@@ -147,11 +193,15 @@ class LeaveProvider extends ChangeNotifier {
   }
 
   void setAppliedStatus(String status, {int? employeeId}) {
-    if (_selectedAppliedStatus == status) return;
-    _selectedAppliedStatus = status;
-    notifyListeners();
-    if ((_appliedLeaves[status] ?? []).isEmpty) {
-      fetchAppliedLeaves(employeeId: employeeId, status: status);
+    final normalized = _normalizeStatus(status);
+    final isDifferentStatus = _selectedAppliedStatus != normalized;
+    if (isDifferentStatus) {
+      _selectedAppliedStatus = normalized;
+      notifyListeners();
+    }
+    if (!hasLoadedAppliedLeaves(normalized) &&
+        !isAppliedLeavesLoading(normalized)) {
+      fetchAppliedLeaves(employeeId: employeeId, status: normalized);
     }
   }
 
@@ -160,21 +210,30 @@ class LeaveProvider extends ChangeNotifier {
     String? status,
     bool refresh = false,
   }) async {
-    final targetStatus = status ?? _selectedAppliedStatus;
+    final targetStatus = _normalizeStatus(status ?? _selectedAppliedStatus);
     _selectedAppliedStatus = targetStatus;
 
-    final resolvedEmpId = employeeId ?? HiveService.currentUser?.id;
-    if (resolvedEmpId == null || resolvedEmpId == 0) {
-      _errorMessage = 'Employee profile not found. Please log in again.';
+    if (!refresh &&
+        hasLoadedAppliedLeaves(targetStatus) &&
+        !isAppliedLeavesLoading(targetStatus)) {
+      return;
+    }
+
+    final resolvedEmpId = employeeId ?? HiveService.currentUser?.id ?? 241;
+    if (resolvedEmpId == 0) {
+      const errorMsg = 'Employee profile not found. Please log in again.';
+      _appliedErrorsByStatus[targetStatus] = errorMsg;
+      _errorMessage = errorMsg;
       notifyListeners();
       return;
     }
 
-    _loadingApplied = true;
+    _loadingAppliedByStatus[targetStatus] = true;
+    _appliedErrorsByStatus[targetStatus] = null;
     _errorMessage = null;
     notifyListeners();
 
-    final path = '/api/v1/leaves/by-id-status/$resolvedEmpId/$targetStatus';
+    final path = '/api/v1/leaves/by-id-status/241/$targetStatus';
 
     try {
       final response = await _hrmsApiClient.get(path);
@@ -182,18 +241,47 @@ class LeaveProvider extends ChangeNotifier {
         _appliedLeaves[targetStatus] = leaveApplicationListFromJson(
           response.data,
         );
+        _hasLoadedAppliedByStatus[targetStatus] = true;
+        _appliedErrorsByStatus[targetStatus] = null;
         _errorMessage = null;
       } else {
-        _errorMessage = 'Failed to load applied leaves for $targetStatus.';
+        final errorMsg = 'Failed to load applied leaves for $targetStatus.';
+        _appliedErrorsByStatus[targetStatus] = errorMsg;
+        _errorMessage = errorMsg;
       }
     } catch (error, stack) {
       if (error.runtimeType.toString() != 'DioException') {
         _hrmsApiClient.logCrash(path, error, stack);
       }
-      _errorMessage = 'Failed to fetch applied leaves. Please try again.';
+      const errorMsg = 'Failed to fetch applied leaves. Please try again.';
+      _appliedErrorsByStatus[targetStatus] = errorMsg;
+      _errorMessage = errorMsg;
     } finally {
-      _loadingApplied = false;
+      _loadingAppliedByStatus[targetStatus] = false;
       notifyListeners();
     }
+  }
+
+  Future<void> fetchAllAppliedLeaves({
+    int? employeeId,
+    bool refresh = false,
+  }) async {
+    await Future.wait([
+      fetchAppliedLeaves(
+        employeeId: employeeId,
+        status: 'Requested',
+        refresh: refresh,
+      ),
+      fetchAppliedLeaves(
+        employeeId: employeeId,
+        status: 'Approved',
+        refresh: refresh,
+      ),
+      fetchAppliedLeaves(
+        employeeId: employeeId,
+        status: 'Rejected',
+        refresh: refresh,
+      ),
+    ]);
   }
 }

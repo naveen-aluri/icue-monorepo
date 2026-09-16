@@ -116,6 +116,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Submit without entering reason
+      await tester.ensureVisible(find.textContaining('Submit Request'));
       await tester.tap(find.textContaining('Submit Request'));
       await tester.pumpAndSettle();
 
@@ -150,8 +151,8 @@ void main() {
 
         // Mount the widget before balances are loaded
         await tester.pumpWidget(buildTestableWidget(const LeaveRequestPage()));
-        // Trigger post-frame callback and async response resolution
-        await tester.pump();
+        // Trigger async fetch while mounted
+        await leaveProvider.fetchLeaveBalances(employeeId: 1, year: 2026);
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull);

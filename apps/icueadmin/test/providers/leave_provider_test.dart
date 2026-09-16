@@ -59,6 +59,10 @@ class MockHrmsApiClient extends Fake implements HrmsApiClient {
   }
 
   @override
+  String extractErrorMessage(DioException error) =>
+      error.message ?? 'Network failure';
+
+  @override
   void logCrash(
     String from,
     Object error,
@@ -303,7 +307,40 @@ void main() {
           leaveProvider.currentAppliedLeaves.first.status,
           equals('Approved'),
         );
+        expect(leaveProvider.hasLoadedAppliedLeaves('Approved'), isTrue);
+        expect(leaveProvider.hasLoadedAppliedLeaves('Rejected'), isFalse);
       });
+
+      test(
+        'does not re-fetch if already loaded unless refresh is true',
+        () async {
+          mockHrmsApiClient.nextResponseData = appliedSample;
+          await leaveProvider.fetchAppliedLeaves(
+            employeeId: 101,
+            status: 'Requested',
+          );
+          mockHrmsApiClient.lastGetPath = null;
+
+          // Call again without refresh
+          await leaveProvider.fetchAppliedLeaves(
+            employeeId: 101,
+            status: 'Requested',
+            refresh: false,
+          );
+          expect(mockHrmsApiClient.lastGetPath, isNull);
+
+          // Call with refresh
+          await leaveProvider.fetchAppliedLeaves(
+            employeeId: 101,
+            status: 'Requested',
+            refresh: true,
+          );
+          expect(
+            mockHrmsApiClient.lastGetPath,
+            equals('/api/v1/leaves/by-id-status/101/Requested'),
+          );
+        },
+      );
     });
   });
 }
