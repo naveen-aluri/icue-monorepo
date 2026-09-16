@@ -6,7 +6,7 @@ import '../../providers/exam_provider.dart';
 import '../../utils/app_utils.dart';
 import '../../widgets/no_data_widget.dart';
 
-enum CorrectionFilterStatus { pending, approved, rejected, all }
+enum CorrectionFilterStatus { pending, approved, rejected }
 
 class MarksCorrectionRequestsPage extends StatefulWidget {
   const MarksCorrectionRequestsPage({super.key});
@@ -48,9 +48,6 @@ class _MarksCorrectionRequestsPageState
         break;
       case CorrectionFilterStatus.rejected:
         statusParam = 'Rejected';
-        break;
-      case CorrectionFilterStatus.all:
-        statusParam = null;
         break;
     }
     await provider.getMarksCorrectionRequests(correctionStatus: statusParam);
@@ -382,16 +379,7 @@ class _MarksCorrectionRequestsPageState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text('Marks Correction Requests'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
-            onPressed: _loadRequests,
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Marks Correction Requests')),
       body: Column(
         children: [
           // Filter Chips and Search Bar
@@ -421,12 +409,6 @@ class _MarksCorrectionRequestsPageState
                         label: 'Rejected',
                         filter: CorrectionFilterStatus.rejected,
                         color: const Color(0xFFEF4444),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(
-                        label: 'All',
-                        filter: CorrectionFilterStatus.all,
-                        color: const Color(0xFF6366F1),
                       ),
                     ],
                   ),
@@ -513,7 +495,7 @@ class _MarksCorrectionRequestsPageState
                             size: 200,
                             msg: _searchQuery.isNotEmpty
                                 ? 'No requests match "$_searchQuery"'
-                                : 'No ${_selectedFilter == CorrectionFilterStatus.all ? "" : _selectedFilter.name} marks correction requests found.',
+                                : 'No ${_selectedFilter.name} marks correction requests found.',
                           ),
                         ),
                       ],

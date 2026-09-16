@@ -4,7 +4,6 @@ import 'dart:developer';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive/hive.dart';
 
 import '../models/user_info.dart';
 import '../utils/app_utils.dart';
@@ -57,9 +56,15 @@ abstract class BaseApiClient {
   InterceptorsWrapper _createInterceptor() {
     return InterceptorsWrapper(
       onRequest: (options, handler) {
-        final user = currentUser;
-        if (user != null) {
-          options.headers['token'] = user.token;
+        final isAuthEndpoint =
+            options.path.contains('login') ||
+            options.path.contains('getloginotp');
+
+        if (!isAuthEndpoint) {
+          final user = currentUser;
+          if (user != null) {
+            options.headers['token'] = user.token;
+          }
         }
 
         // Only inject extra fields for requests that allow data.
@@ -342,39 +347,25 @@ abstract class BaseApiClient {
     );
   }
 
-  UserInfo? _cachedUser;
-  dynamic _cachedBranchId;
+  /// Clear in-memory session cache on logout or credential change.
+  /// Retained for backward compatibility; state is fetched dynamically from [HiveService].
+  void invalidateSessionCache() {}
 
-  /// Clear in-memory session cache on logout or credential change
-  void invalidateSessionCache() {
-    _cachedUser = null;
-    _cachedBranchId = null;
-  }
-
+  /// The currently authenticated user, fetched dynamically from in-memory Hive storage.
   UserInfo? get currentUser {
-    if (_cachedUser != null) return _cachedUser;
     try {
-      if (Hive.isBoxOpen('userInfo-v2') &&
-          HiveService.userInfoBox.values.isNotEmpty) {
-        _cachedUser = HiveService.userInfoBox.values.first;
-      }
-    } catch (_) {}
-    return _cachedUser;
+      return HiveService.currentUser;
+    } catch (_) {
+      return null;
+    }
   }
 
+  /// The currently active branch ID (either selected zonal branch or user's assigned branch).
   dynamic get currentBranchId {
-    if (_cachedBranchId != null) return _cachedBranchId;
     try {
-      if (Hive.isBoxOpen('zonalBranch-v2')) {
-        _cachedBranchId =
-            HiveService.zonalBranch.get('selected')?.id ??
-            currentUser?.branchId;
-      } else {
-        _cachedBranchId = currentUser?.branchId;
-      }
+      return HiveService.currentZonalBranch?.id ?? currentUser?.branchId;
     } catch (_) {
-      _cachedBranchId = currentUser?.branchId;
+      return currentUser?.branchId;
     }
-    return _cachedBranchId;
   }
 }

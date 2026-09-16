@@ -141,7 +141,7 @@ void main() {
         expect(find.text('Pending'), findsOneWidget);
         expect(find.text('Approved'), findsOneWidget);
         expect(find.text('Rejected'), findsOneWidget);
-        expect(find.text('All'), findsOneWidget);
+        expect(find.text('All'), findsNothing);
         expect(find.byType(TextField), findsOneWidget);
 
         expect(
@@ -273,12 +273,6 @@ void main() {
         mockApiClient.lastPostData,
         equals({'CorrectionStatus': 'Rejected'}),
       );
-
-      // Tap 'All' chip
-      await tester.tap(find.text('All'));
-      await tester.pumpAndSettle();
-
-      expect(mockApiClient.lastPostData, equals({}));
     });
 
     testWidgets(
