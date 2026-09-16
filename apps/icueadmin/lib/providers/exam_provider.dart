@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +7,7 @@ import '../models/exam_marks.dart';
 import '../models/exam_results.dart';
 import '../models/exam_schedule.dart';
 import '../models/marks.dart';
+import '../models/marks_correction.dart';
 import '../models/prep_exam.dart';
 import '../services/api_client.dart';
 import '../services/hive_service.dart';
@@ -23,6 +25,8 @@ class ExamProvider extends ChangeNotifier {
   List<ExamSchedule> schedules = [];
   ExamSchedule? selectedSchedule;
   List<ExamStudent> students = [];
+  List<MarksCorrectionItem> marksCorrectionRequests = [];
+  bool loadingMarksCorrections = false;
 
   static final _dateFormat = DateFormat('M/d/yyyy');
 
@@ -60,6 +64,13 @@ class ExamProvider extends ChangeNotifier {
     selectedSchedule = null;
     students = [];
     _studentIndexMap.clear();
+    marksCorrectionRequests = [];
+    loadingMarksCorrections = false;
+    notifyListeners();
+  }
+
+  void clearMarksCorrectionRequests() {
+    marksCorrectionRequests = [];
     notifyListeners();
   }
 
@@ -440,6 +451,22 @@ class ExamProvider extends ChangeNotifier {
 
       // Fetch saved marks silently to avoid intermediate UI flicker before loading completes
       await getExamMarks(examId: examId, notify: false);
+
+      // Silently fetch any pending marks correction requests to identify blocked students
+      try {
+        final pendingCorrections = await getMarksCorrectionRequests(
+          examId: examId,
+        );
+        for (final req in pendingCorrections) {
+          final s = getStudentById(req.studentId);
+          if (s != null) {
+            s.isCorrectionPending = true;
+            s.correction = req.correction;
+          }
+        }
+      } catch (_) {
+        // Silently ignore if getMarksCorrectionRequests fails during initial student load
+      }
     } catch (error, stack) {
       students = [];
       _studentIndexMap.clear();
@@ -512,6 +539,7 @@ class ExamProvider extends ChangeNotifier {
       if (isSavedSuccess) {
         for (final s in studentList) {
           s.isSaved = true;
+          s.hasExistingMarks = true;
         }
         if (context != null && context.mounted) {
           AppUtils.showSucessMessage(
@@ -579,6 +607,12 @@ class ExamProvider extends ChangeNotifier {
             s.remarks = item.remarks;
           }
           s.isSaved = true;
+          s.hasExistingMarks = true;
+          if (item.correction != null) {
+            s.correction = item.correction;
+            s.isCorrectionPending =
+                item.correction?.status?.trim().toLowerCase() == 'pending';
+          }
           changed = true;
         }
       }
@@ -643,20 +677,269 @@ class ExamProvider extends ChangeNotifier {
     }
   }
 
+  // 10. Request Marks Correction
+  Future<RequestMarksCorrectionResponse> requestMarksCorrection({
+    BuildContext? context,
+    required int examId,
+    required int studentId,
+    num? newMarks,
+    String? newStatus,
+    String? reason,
+    bool showLoading = true,
+  }) async {
+    final showDialog = showLoading && context != null && context.mounted;
+    if (showDialog) {
+      AppUtils.showLoadingDialog(
+        context,
+        'Submitting marks correction request...',
+      );
+    }
+
+    try {
+      final payload = <String, dynamic>{
+        'ExamId': examId,
+        'StudentId': studentId,
+        'NewMarks': newMarks,
+        'NewStatus': newStatus ?? '',
+        'Reason': reason ?? '',
+      };
+
+      final response = await _apiClient.post(
+        '/v1.0/requestMarksCorrection',
+        data: payload,
+      );
+
+      final dynamic responseData = response.data is Map ? response.data : {};
+      final result = RequestMarksCorrectionResponse.fromJson(
+        Map<String, dynamic>.from(responseData as Map),
+      );
+
+      if (result.success && !result.err) {
+        final studentIndex =
+            _studentIndexMap[studentId] ??
+            students.indexWhere((s) => s.studentId == studentId);
+        if (studentIndex != -1 && studentIndex < students.length) {
+          final student = students[studentIndex];
+          student.isCorrectionPending = true;
+          student.correction = Correction(
+            status: result.correctionStatus ?? 'Pending',
+            statusAt: result.correctionStatusAt,
+            marks: result.requestedMarks,
+            markStatus: result.requestedStatus,
+            reason: reason,
+          );
+          notifyListeners();
+        }
+        if (context != null && context.mounted) {
+          AppUtils.showSucessMessage(
+            context,
+            result.message.isNotEmpty
+                ? result.message
+                : 'Marks correction request submitted successfully for Principal approval',
+          );
+        }
+      } else {
+        if (result.err &&
+            result.message.toLowerCase().contains('already pending')) {
+          final studentIndex =
+              _studentIndexMap[studentId] ??
+              students.indexWhere((s) => s.studentId == studentId);
+          if (studentIndex != -1 && studentIndex < students.length) {
+            students[studentIndex].isCorrectionPending = true;
+            notifyListeners();
+          }
+        }
+        final errorMsg = result.message.isNotEmpty
+            ? result.message
+            : 'Failed to submit marks correction request';
+        if (context != null && context.mounted) {
+          AppUtils.showErrorMessage(context, errorMsg);
+        }
+      }
+
+      return result;
+    } catch (error, stack) {
+      _logError('/requestMarksCorrection', error, stack);
+      String errorMsg = 'Failed to submit marks correction request';
+      if (error is DioException) {
+        final data = error.response?.data;
+        if (data is Map && data['message'] != null) {
+          errorMsg = data['message'].toString();
+        } else if (data is String && data.isNotEmpty) {
+          errorMsg = data;
+        }
+      }
+      return RequestMarksCorrectionResponse.error(errorMsg);
+    } finally {
+      if (showDialog && context.mounted) {
+        AppUtils.hideLoadingDialog(context);
+      }
+    }
+  }
+
+  // 11. Get Marks Correction Requests
+  Future<List<MarksCorrectionItem>> getMarksCorrectionRequests({
+    String? correctionStatus = 'Pending',
+    int? examId,
+  }) async {
+    loadingMarksCorrections = true;
+    marksCorrectionRequests = [];
+    notifyListeners();
+
+    try {
+      final payload = <String, dynamic>{};
+      if (correctionStatus != null && correctionStatus.isNotEmpty) {
+        payload['CorrectionStatus'] = correctionStatus;
+      }
+      if (examId != null) {
+        payload['ExamId'] = examId;
+      }
+
+      final response = await _apiClient.post(
+        '/v1.0/getMarksCorrectionRequests',
+        data: payload,
+      );
+
+      final dynamic responseData = response.data;
+      if (responseData is Map) {
+        final parsed = GetMarksCorrectionRequestsResponse.fromJson(
+          Map<String, dynamic>.from(responseData),
+        );
+        marksCorrectionRequests = parsed.data;
+      } else if (responseData is List) {
+        marksCorrectionRequests = responseData
+            .whereType<Map>()
+            .map(
+              (m) => MarksCorrectionItem.fromJson(Map<String, dynamic>.from(m)),
+            )
+            .toList();
+      }
+      return marksCorrectionRequests;
+    } catch (error, stack) {
+      marksCorrectionRequests = [];
+      _logError('/getMarksCorrectionRequests', error, stack);
+      return [];
+    } finally {
+      loadingMarksCorrections = false;
+      notifyListeners();
+    }
+  }
+
+  // 12. Approve or Reject Marks Correction
+  Future<ApproveMarksCorrectionResponse> approveMarksCorrection({
+    BuildContext? context,
+    required int examId,
+    required int studentId,
+    required String decision,
+    String? remarks,
+    bool showLoading = true,
+  }) async {
+    final showDialog = showLoading && context != null && context.mounted;
+    if (showDialog) {
+      AppUtils.showLoadingDialog(
+        context,
+        decision.toLowerCase() == 'approved'
+            ? 'Approving marks correction...'
+            : 'Rejecting marks correction...',
+      );
+    }
+
+    try {
+      final payload = <String, dynamic>{
+        'ExamId': examId,
+        'StudentId': studentId,
+        'Decision': decision,
+        'Remarks': remarks ?? '',
+      };
+
+      final response = await _apiClient.post(
+        '/v1.0/approveMarksCorrection',
+        data: payload,
+      );
+
+      final dynamic responseData = response.data is Map ? response.data : {};
+      final result = ApproveMarksCorrectionResponse.fromJson(
+        Map<String, dynamic>.from(responseData as Map),
+      );
+
+      if (result.success && !result.err) {
+        if (context != null && context.mounted) {
+          AppUtils.showSucessMessage(
+            context,
+            result.message.isNotEmpty
+                ? result.message
+                : 'Marks correction request $decision successfully',
+          );
+        }
+
+        // Update local student mark & status if student is currently loaded
+        final studentIndex =
+            _studentIndexMap[studentId] ??
+            students.indexWhere((s) => s.studentId == studentId);
+        if (studentIndex != -1 && studentIndex < students.length) {
+          final student = students[studentIndex];
+          if (decision.toLowerCase() == 'approved') {
+            if (result.marks != null) {
+              student.marks = result.marks;
+            }
+            if (result.status != null && result.status!.isNotEmpty) {
+              student.status = result.status!;
+            }
+            student.isSaved = true;
+          }
+        }
+
+        // Update in marksCorrectionRequests list
+        marksCorrectionRequests.removeWhere(
+          (item) => item.examId == examId && item.studentId == studentId,
+        );
+        notifyListeners();
+      } else {
+        final errorMsg = result.message.isNotEmpty
+            ? result.message
+            : 'Failed to process marks correction request';
+        if (context != null && context.mounted) {
+          AppUtils.showErrorMessage(context, errorMsg);
+        }
+      }
+
+      return result;
+    } catch (error, stack) {
+      _logError('/approveMarksCorrection', error, stack);
+      String errorMsg = 'Failed to process marks correction request';
+      if (error is DioException) {
+        final data = error.response?.data;
+        if (data is Map && data['message'] != null) {
+          errorMsg = data['message'].toString();
+        } else if (data is String && data.isNotEmpty) {
+          errorMsg = data;
+        }
+      }
+      return ApproveMarksCorrectionResponse.error(errorMsg);
+    } finally {
+      if (showDialog && context.mounted) {
+        AppUtils.hideLoadingDialog(context);
+      }
+    }
+  }
+
   void _computeRanksIfMissing(List<ExamResult> list) {
     if (list.isEmpty) return;
     if (list.any((r) => r.rank != null && r.rank! > 0)) return;
 
-    final rankable = list
-        .where((r) =>
-            (r.percentage != null || r.totalMarks != null) &&
-            r.result?.trim().toUpperCase() != 'N/A')
-        .toList()
-      ..sort(
-        (a, b) => (b.percentage ?? b.totalMarks ?? 0).compareTo(
-          a.percentage ?? a.totalMarks ?? 0,
-        ),
-      );
+    final rankable =
+        list
+            .where(
+              (r) =>
+                  (r.percentage != null || r.totalMarks != null) &&
+                  r.result?.trim().toUpperCase() != 'N/A',
+            )
+            .toList()
+          ..sort(
+            (a, b) => (b.percentage ?? b.totalMarks ?? 0).compareTo(
+              a.percentage ?? a.totalMarks ?? 0,
+            ),
+          );
 
     int currentRank = 1;
     for (int i = 0; i < rankable.length; i++) {

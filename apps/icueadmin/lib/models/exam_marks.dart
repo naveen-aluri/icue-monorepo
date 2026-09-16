@@ -1,3 +1,5 @@
+import 'marks.dart';
+
 class ExamStudent {
   ExamStudent({
     required this.studentId,
@@ -10,6 +12,9 @@ class ExamStudent {
     this.status = 'PRESENT',
     this.remarks,
     this.isSaved = false,
+    this.hasExistingMarks = false,
+    this.isCorrectionPending = false,
+    this.correction,
   });
 
   factory ExamStudent.fromJson(Map<String, dynamic> json) {
@@ -27,6 +32,19 @@ class ExamStudent {
     final isExplicitSaved = json['IsSaved'] == true ||
         json['IsSaved'] == 1 ||
         json['IsSaved']?.toString().toLowerCase() == 'true';
+    final hasExistingMarks = json['HasExistingMarks'] == true ||
+        hasMarks ||
+        isExplicitAttendance ||
+        isExplicitSaved;
+
+    Correction? correction;
+    if (json['Correction'] is Map) {
+      correction = Correction.fromJson(
+        Map<String, dynamic>.from(json['Correction'] as Map),
+      );
+    }
+    final isCorrectionPending = json['IsCorrectionPending'] == true ||
+        correction?.status?.trim().toLowerCase() == 'pending';
 
     return ExamStudent(
       studentId: json['StudentId'] is int
@@ -52,6 +70,9 @@ class ExamStudent {
       status: effectiveStatus,
       remarks: json['Remarks']?.toString(),
       isSaved: isExplicitSaved || hasMarks || isExplicitAttendance,
+      hasExistingMarks: hasExistingMarks,
+      isCorrectionPending: isCorrectionPending,
+      correction: correction,
     );
   }
 
@@ -65,6 +86,9 @@ class ExamStudent {
   String status; // 'PRESENT', 'ABSENT', 'NA'
   String? remarks;
   bool isSaved;
+  bool hasExistingMarks;
+  bool isCorrectionPending;
+  Correction? correction;
 
   ExamStudent copyWith({
     int? studentId,
@@ -77,6 +101,9 @@ class ExamStudent {
     String? status,
     String? remarks,
     bool? isSaved,
+    bool? hasExistingMarks,
+    bool? isCorrectionPending,
+    Correction? correction,
   }) => ExamStudent(
     studentId: studentId ?? this.studentId,
     classId: classId ?? this.classId,
@@ -88,6 +115,9 @@ class ExamStudent {
     status: status ?? this.status,
     remarks: remarks ?? this.remarks,
     isSaved: isSaved ?? this.isSaved,
+    hasExistingMarks: hasExistingMarks ?? this.hasExistingMarks,
+    isCorrectionPending: isCorrectionPending ?? this.isCorrectionPending,
+    correction: correction ?? this.correction,
   );
 
   Map<String, dynamic> toJson() => {
@@ -100,6 +130,8 @@ class ExamStudent {
     if (marks != null) 'Marks': marks,
     'Status': status,
     if (remarks != null) 'Remarks': remarks,
+    if (isCorrectionPending) 'IsCorrectionPending': isCorrectionPending,
+    if (correction != null) 'Correction': correction!.toJson(),
   };
 }
 

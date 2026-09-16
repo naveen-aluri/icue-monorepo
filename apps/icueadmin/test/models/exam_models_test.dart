@@ -555,5 +555,62 @@ void main() {
       );
       expect(subFail.isPassed, isFalse);
     });
+
+    test('ExamStudent handles hasExistingMarks and isCorrectionPending correctly', () {
+      // Case 1: Student with existing marks
+      final studentWithMarks = ExamStudent.fromJson({
+        'StudentId': 101,
+        'StudentName': 'Alice',
+        'Marks': 45,
+        'Status': 'PRESENT',
+      });
+      expect(studentWithMarks.hasExistingMarks, isTrue);
+      expect(studentWithMarks.isCorrectionPending, isFalse);
+
+      // Case 2: Student marked as ABSENT
+      final studentAbsent = ExamStudent.fromJson({
+        'StudentId': 102,
+        'StudentName': 'Bob',
+        'Marks': null,
+        'Status': 'ABSENT',
+      });
+      expect(studentAbsent.hasExistingMarks, isTrue);
+
+      // Case 3: Fresh student with no marks
+      final freshStudent = ExamStudent.fromJson({
+        'StudentId': 103,
+        'StudentName': 'Charlie',
+        'Marks': null,
+        'Status': 'Active',
+      });
+      expect(freshStudent.hasExistingMarks, isFalse);
+      expect(freshStudent.isCorrectionPending, isFalse);
+
+      // Case 4: Student with pending correction object
+      final pendingStudent = ExamStudent.fromJson({
+        'StudentId': 104,
+        'StudentName': 'Diana',
+        'Marks': 30,
+        'Status': 'PRESENT',
+        'Correction': {
+          'Status': 'Pending',
+          'Marks': 38,
+          'MarkStatus': 'PRESENT',
+          'Reason': 'Review needed',
+        },
+      });
+      expect(pendingStudent.hasExistingMarks, isTrue);
+      expect(pendingStudent.isCorrectionPending, isTrue);
+      expect(pendingStudent.correction, isNotNull);
+      expect(pendingStudent.correction?.marks, equals(38));
+
+      // Test copyWith
+      final updated = pendingStudent.copyWith(
+        isCorrectionPending: false,
+        hasExistingMarks: false,
+      );
+      expect(updated.isCorrectionPending, isFalse);
+      expect(updated.hasExistingMarks, isFalse);
+    });
   });
 }
