@@ -25,6 +25,7 @@ import '../providers/exam_provider.dart' as _i980;
 import '../providers/expense_provider.dart' as _i964;
 import '../providers/gatepass_provider.dart' as _i371;
 import '../providers/home_assignment_provider.dart' as _i896;
+import '../providers/leave_provider.dart' as _i1050;
 import '../providers/reports_provider.dart' as _i990;
 import '../providers/students_provider.dart' as _i871;
 import '../providers/vehicle_provider.dart' as _i1020;
@@ -107,6 +108,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i896.HomeAssignmentProvider>(
       () => _i896.HomeAssignmentProvider(gh<_i1013.ApiClient>()),
+    );
+    gh.lazySingleton<_i1050.LeaveProvider>(
+      () => _i1050.LeaveProvider(gh<_i67.HrmsApiClient>()),
     );
     gh.singleton<_i459.NotificationService>(
       () => _i459.NotificationService(gh<_i773.AuthProvider>()),

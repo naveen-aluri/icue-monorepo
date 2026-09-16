@@ -11,10 +11,19 @@ import 'package:icueadmin/services/api_client.dart';
 import 'package:provider/provider.dart';
 
 class MockApiClient extends Fake implements ApiClient {
-  String? lastPostPath;
   dynamic lastPostData;
+  String? lastPostPath;
   dynamic nextResponseData;
   int nextStatusCode = 200;
+
+  @override
+  void logCrash(
+    String from,
+    Object error,
+    StackTrace? stack, {
+    bool fatal = true,
+    String? message,
+  }) {}
 
   @override
   Future<Response> post(
@@ -31,15 +40,6 @@ class MockApiClient extends Fake implements ApiClient {
       statusCode: nextStatusCode,
     );
   }
-
-  @override
-  void logCrash(
-    String from,
-    Object error,
-    StackTrace? stack, {
-    bool fatal = true,
-    String? message,
-  }) {}
 }
 
 void main() {
@@ -66,14 +66,13 @@ void main() {
   }
 
   group('LeavesPage Widget Test', () {
-    testWidgets('renders title and features correctly', (tester) async {
+    testWidgets('renders title and sub actions correctly', (tester) async {
       await tester.pumpWidget(const MaterialApp(home: LeavesPage()));
 
       expect(find.text('Leaves'), findsOneWidget);
-      expect(find.text('Leave Management'), findsOneWidget);
-      expect(find.text('Pending Approvals'), findsOneWidget);
-      expect(find.text('Leave History & Logs'), findsOneWidget);
-      expect(find.text('Leave Calendar'), findsOneWidget);
+      expect(find.text('Leave Balance'), findsOneWidget);
+      expect(find.text('Leave Request'), findsOneWidget);
+      expect(find.text('Leaves Applied'), findsOneWidget);
     });
   });
 

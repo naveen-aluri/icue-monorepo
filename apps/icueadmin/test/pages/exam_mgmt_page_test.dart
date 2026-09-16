@@ -80,59 +80,58 @@ void main() {
     },
   );
 
-  testWidgets(
-    'ExamMgmtPage renders all 3 cards when role has all sub-actions',
-    (tester) async {
-      final fullExamAction = RoleActions(
-        id: 265,
-        name: 'Exam Mgmt - Admin App',
-        displayName: 'Exam Mgmt',
-        routeState: 'layout.exams',
-        icon: 'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
-        tabOrder: 1,
-        subActions: true,
-        subActionItems: [
-          RoleActions(
-            id: 266,
-            name: 'Marks Entry - Admin App',
-            displayName: 'Marks Entry',
-            routeState: 'layout.marksentry',
-            icon:
-                'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
-            tabOrder: 1,
-          ),
-          RoleActions(
-            id: 267,
-            name: 'Results - Admin App',
-            displayName: 'Results & Leaderboards',
-            routeState: 'layout.exam_results',
-            icon:
-                'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
-            tabOrder: 2,
-          ),
-          RoleActions(
-            id: 268,
-            name: 'Marks Correction Requests - Admin App',
-            displayName: 'Marks Correction Requests',
-            routeState: 'layout.markscorrectionrequests',
-            icon:
-                'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
-            tabOrder: 3,
-          ),
-        ],
-      );
+  testWidgets('ExamMgmtPage renders all 3 cards when role has all sub-actions', (
+    tester,
+  ) async {
+    final fullExamAction = RoleActions(
+      id: 265,
+      name: 'Exam Mgmt - Admin App',
+      displayName: 'Exam Mgmt',
+      routeState: 'layout.exams',
+      icon: 'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
+      tabOrder: 1,
+      subActions: true,
+      subActionItems: [
+        RoleActions(
+          id: 266,
+          name: 'Marks Entry - Admin App',
+          displayName: 'Marks Entry',
+          routeState: 'layout.marksentry',
+          icon:
+              'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
+          tabOrder: 1,
+        ),
+        RoleActions(
+          id: 267,
+          name: 'Results - Admin App',
+          displayName: 'Results & Leaderboards',
+          routeState: 'layout.exam_results',
+          icon:
+              'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
+          tabOrder: 2,
+        ),
+        RoleActions(
+          id: 268,
+          name: 'Marks Correction Requests - Admin App',
+          displayName: 'Marks Correction Requests',
+          routeState: 'layout.markscorrectionrequests',
+          icon:
+              'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
+          tabOrder: 3,
+        ),
+      ],
+    );
 
-      await actionsBox.put('layout.exams', fullExamAction);
+    await actionsBox.put('layout.exams', fullExamAction);
 
-      await tester.pumpWidget(const MaterialApp(home: ExamMgmtPage()));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpWidget(const MaterialApp(home: ExamMgmtPage()));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
 
-      expect(find.text('Marks Entry'), findsOneWidget);
-      expect(find.text('Results & Leaderboards'), findsOneWidget);
-      expect(find.text('Marks Correction Requests'), findsOneWidget);
-    },
-  );
+    expect(find.text('Marks Entry'), findsOneWidget);
+    expect(find.text('Results & Leaderboards'), findsOneWidget);
+    expect(find.text('Marks Correction Requests'), findsOneWidget);
+  });
 
   testWidgets(
     'ExamMgmtPage renders default fallback cards when subActionItems is empty',

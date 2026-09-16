@@ -783,8 +783,8 @@ class _MarksCorrectionCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: const [
+                      const Row(
+                        children: [
                           Icon(
                             Icons.format_quote_rounded,
                             size: 15,

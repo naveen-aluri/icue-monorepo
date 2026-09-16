@@ -49,7 +49,10 @@ void main() {
       bool hasNestedCorrectionRoute = false;
       bool hasTopLevelCorrectionRoute = false;
 
-      void checkRoutes(List<RouteBase> dynamicRoutes, {bool underExams = false}) {
+      void checkRoutes(
+        List<RouteBase> dynamicRoutes, {
+        bool underExams = false,
+      }) {
         for (final route in dynamicRoutes) {
           if (route is GoRoute) {
             if (route.path == 'layout.markscorrectionrequests') {
