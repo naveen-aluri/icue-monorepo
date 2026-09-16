@@ -9,15 +9,70 @@ import '../../services/hive_service.dart';
 class ExamMgmtPage extends StatelessWidget {
   const ExamMgmtPage({super.key});
 
-  static String _findSubActionName(
-    List<RoleActions> subActions,
-    String routeState,
-    String defaultName,
-  ) {
-    final match = subActions.firstWhereOrNull(
-      (a) => a.routeState == routeState,
-    );
-    return match?.displayName ?? defaultName;
+  Widget _buildCardForAction(BuildContext context, RoleActions action) {
+    switch (action.routeState) {
+      case 'layout.marksentry':
+        return _EnterpriseFeatureCard(
+          title: action.displayName.isNotEmpty
+              ? action.displayName
+              : 'Marks Entry',
+          subtitle:
+              'Rapid score entry with real-time validation, Present, Absent, and NA attendance controls.',
+          badgeText: 'Rapid Entry',
+          badgeColor: const Color(0xFF10B981),
+          icon: Icons.assignment_turned_in_rounded,
+          iconBgColor: const Color(0xFFECFDF5),
+          iconColor: const Color(0xFF059669),
+          onTap: () => context.go('/layout.exams/layout.marksentry'),
+        );
+      case 'layout.exam_results':
+        return _EnterpriseFeatureCard(
+          title: action.displayName.isNotEmpty
+              ? action.displayName
+              : 'Results & Leaderboards',
+          subtitle:
+              'Class pass rates, top rankers with gold/silver medals, grade distribution, and subject marks.',
+          badgeText: 'Analytics',
+          badgeColor: const Color(0xFFF59E0B),
+          icon: Icons.military_tech_rounded,
+          iconBgColor: const Color(0xFFFFFBEB),
+          iconColor: const Color(0xFFD97706),
+          onTap: () => context.go('/layout.exams/layout.exam_results'),
+        );
+      case 'layout.markscorrectionrequests':
+        return _EnterpriseFeatureCard(
+          title: action.displayName.isNotEmpty
+              ? action.displayName
+              : 'Marks Correction Requests',
+          subtitle:
+              'Review, approve, or reject score correction requests submitted by teachers.',
+          badgeText: 'Approvals',
+          badgeColor: const Color(0xFF6366F1),
+          icon: Icons.fact_check_rounded,
+          iconBgColor: const Color(0xFFEEF2FF),
+          iconColor: const Color(0xFF4F46E5),
+          onTap: () =>
+              context.go('/layout.exams/layout.markscorrectionrequests'),
+        );
+      default:
+        return _EnterpriseFeatureCard(
+          title: action.displayName.isNotEmpty
+              ? action.displayName
+              : action.name,
+          subtitle: action.name,
+          badgeText: 'Feature',
+          badgeColor: const Color(0xFF64748B),
+          icon: Icons.quiz_rounded,
+          iconBgColor: const Color(0xFFF1F5F9),
+          iconColor: const Color(0xFF475569),
+          onTap: () {
+            final route = action.routeState.startsWith('/')
+                ? action.routeState
+                : '/layout.exams/${action.routeState}';
+            context.go(route);
+          },
+        );
+    }
   }
 
   @override
@@ -33,44 +88,61 @@ class ExamMgmtPage extends StatelessWidget {
           );
           final subActions = examAction?.subActionItems ?? [];
 
+          final List<Widget> cards;
+          if (subActions.isNotEmpty) {
+            final sortedSubActions = List<RoleActions>.from(subActions)
+              ..sort((a, b) => a.tabOrder.compareTo(b.tabOrder));
+            cards = sortedSubActions
+                .map((action) => _buildCardForAction(context, action))
+                .toList();
+          } else {
+            cards = [
+              _EnterpriseFeatureCard(
+                title: 'Marks Entry',
+                subtitle:
+                    'Rapid score entry with real-time validation, Present, Absent, and NA attendance controls.',
+                badgeText: 'Rapid Entry',
+                badgeColor: const Color(0xFF10B981),
+                icon: Icons.assignment_turned_in_rounded,
+                iconBgColor: const Color(0xFFECFDF5),
+                iconColor: const Color(0xFF059669),
+                onTap: () => context.go('/layout.exams/layout.marksentry'),
+              ),
+              _EnterpriseFeatureCard(
+                title: 'Results & Leaderboards',
+                subtitle:
+                    'Class pass rates, top rankers with gold/silver medals, grade distribution, and subject marks.',
+                badgeText: 'Analytics',
+                badgeColor: const Color(0xFFF59E0B),
+                icon: Icons.military_tech_rounded,
+                iconBgColor: const Color(0xFFFFFBEB),
+                iconColor: const Color(0xFFD97706),
+                onTap: () => context.go('/layout.exams/layout.exam_results'),
+              ),
+              _EnterpriseFeatureCard(
+                title: 'Marks Correction Requests',
+                subtitle:
+                    'Review, approve, or reject score correction requests submitted by teachers.',
+                badgeText: 'Approvals',
+                badgeColor: const Color(0xFF6366F1),
+                icon: Icons.fact_check_rounded,
+                iconBgColor: const Color(0xFFEEF2FF),
+                iconColor: const Color(0xFF4F46E5),
+                onTap: () =>
+                    context.go('/layout.exams/layout.markscorrectionrequests'),
+              ),
+            ];
+          }
+
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _EnterpriseFeatureCard(
-                  title: _findSubActionName(
-                    subActions,
-                    'layout.marksentry',
-                    'Marks Entry',
-                  ),
-                  subtitle:
-                      'Rapid score entry with real-time validation, Present, Absent, and NA attendance controls.',
-                  badgeText: 'Rapid Entry',
-                  badgeColor: const Color(0xFF10B981),
-                  icon: Icons.assignment_turned_in_rounded,
-                  iconBgColor: const Color(0xFFECFDF5),
-                  iconColor: const Color(0xFF059669),
-                  onTap: () => context.go('/layout.exams/layout.marksentry'),
-                ),
-
-                const SizedBox(height: 12),
-
-                _EnterpriseFeatureCard(
-                  title: _findSubActionName(
-                    subActions,
-                    'layout.exam_results',
-                    'Results & Leaderboards',
-                  ),
-                  subtitle:
-                      'Class pass rates, top rankers with gold/silver medals, grade distribution, and subject marks.',
-                  badgeText: 'Analytics',
-                  badgeColor: const Color(0xFFF59E0B),
-                  icon: Icons.military_tech_rounded,
-                  iconBgColor: const Color(0xFFFFFBEB),
-                  iconColor: const Color(0xFFD97706),
-                  onTap: () => context.go('/layout.exams/layout.exam_results'),
-                ),
+                for (int i = 0; i < cards.length; i++) ...[
+                  cards[i],
+                  if (i < cards.length - 1) const SizedBox(height: 12),
+                ],
               ],
             ),
           );

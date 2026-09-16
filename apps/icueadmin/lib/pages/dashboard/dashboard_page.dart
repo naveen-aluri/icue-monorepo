@@ -31,6 +31,7 @@ const Map<String, String> _iconsMap = {
 
 const Map<String, IconData> _fallbackIconsMap = {
   'layout.exams': Icons.quiz_outlined,
+  'layout.markscorrectionrequests': Icons.fact_check_outlined,
   'layout.leaves': Icons.event_note_outlined,
   'layout.homeassignments': Icons.assignment_outlined,
   'layout.attendance': Icons.how_to_reg_outlined,

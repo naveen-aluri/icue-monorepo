@@ -17,6 +17,7 @@ import '../../pages/drivers/drivers_page.dart';
 import '../../pages/drop_boarding/drop_boarding_page.dart';
 import '../../pages/exams/exam_mgmt_page.dart';
 import '../../pages/exams/exam_results_page.dart';
+import '../../pages/exams/marks_correction_requests_page.dart';
 import '../../pages/exams/marks_entry_page.dart';
 import '../../pages/fuel/fuel_page.dart';
 import '../../pages/gatepass/gatepass_page.dart';
@@ -467,6 +468,14 @@ final GoRouter appRouter = GoRouter(
                     child: ExamResultsPage(),
                   ),
                 ),
+                GoRoute(
+                  parentNavigatorKey: navigatorKey,
+                  path: 'layout.markscorrectionrequests',
+                  builder: (context, state) => const ScreenTracker(
+                    screenName: 'marks-correction-requests-page',
+                    child: MarksCorrectionRequestsPage(),
+                  ),
+                ),
               ],
             ),
             GoRoute(
@@ -483,6 +492,14 @@ final GoRouter appRouter = GoRouter(
               builder: (context, state) => const ScreenTracker(
                 screenName: 'exam-results-page',
                 child: ExamResultsPage(),
+              ),
+            ),
+            GoRoute(
+              parentNavigatorKey: navigatorKey,
+              path: 'layout.markscorrectionrequests',
+              builder: (context, state) => const ScreenTracker(
+                screenName: 'marks-correction-requests-page',
+                child: MarksCorrectionRequestsPage(),
               ),
             ),
 

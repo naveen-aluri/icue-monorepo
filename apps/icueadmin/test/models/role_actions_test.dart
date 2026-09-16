@@ -199,4 +199,83 @@ void main() {
       });
     },
   );
+
+  group('RoleActions parsing for Principal Login Action Items', () {
+    final principalActionsJson = [
+      {
+        'Id': 265,
+        'Name': 'Exam Mgmt - Admin App',
+        'DisplayName': 'Exam Mgmt',
+        'RouteState': 'layout.exams',
+        'Icon':
+            'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
+        'TabOrder': 1,
+        'SubActions': true,
+        'SubActionItems': [
+          {
+            'Id': 268,
+            'Name': 'Marks Correction Requests - Admin App',
+            'DisplayName': 'Marks Correction Requests',
+            'RouteState': 'layout.markscorrectionrequests',
+            'Icon':
+                'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
+            'TabOrder': 3,
+          },
+        ],
+      },
+    ];
+
+    test(
+      'parses principal Exam Mgmt with Marks Correction Requests sub-action',
+      () {
+        final actions = principalActionsJson
+            .map((x) => RoleActions.fromJson(x))
+            .toList();
+
+        expect(actions.length, equals(1));
+        final examMgmt = actions.first;
+        expect(examMgmt.id, equals(265));
+        expect(examMgmt.name, equals('Exam Mgmt - Admin App'));
+        expect(examMgmt.displayName, equals('Exam Mgmt'));
+        expect(examMgmt.routeState, equals('layout.exams'));
+        expect(examMgmt.tabOrder, equals(1));
+        expect(examMgmt.subActions, isTrue);
+        expect(examMgmt.subActionItems, isNotNull);
+        expect(examMgmt.subActionItems!.length, equals(1));
+
+        final correctionRequest = examMgmt.subActionItems!.first;
+        expect(correctionRequest.id, equals(268));
+        expect(
+          correctionRequest.name,
+          equals('Marks Correction Requests - Admin App'),
+        );
+        expect(
+          correctionRequest.displayName,
+          equals('Marks Correction Requests'),
+        );
+        expect(
+          correctionRequest.routeState,
+          equals('layout.markscorrectionrequests'),
+        );
+        expect(correctionRequest.tabOrder, equals(3));
+      },
+    );
+
+    test('roundtrips principal action items through toJson()', () {
+      final action = RoleActions.fromJson(principalActionsJson.first);
+      final jsonMap = action.toJson();
+      final roundtripped = RoleActions.fromJson(jsonMap);
+
+      expect(roundtripped.id, equals(265));
+      expect(roundtripped.routeState, equals('layout.exams'));
+      expect(roundtripped.subActions, isTrue);
+      expect(roundtripped.subActionItems?.length, equals(1));
+      expect(
+        roundtripped.subActionItems?.first.routeState,
+        equals('layout.markscorrectionrequests'),
+      );
+      expect(roundtripped.subActionItems?.first.id, equals(268));
+      expect(roundtripped.subActionItems?.first.tabOrder, equals(3));
+    });
+  });
 }
