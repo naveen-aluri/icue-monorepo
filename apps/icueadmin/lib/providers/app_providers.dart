@@ -3,6 +3,7 @@ import 'package:provider/single_child_widget.dart';
 
 import '../services/analytics_service.dart';
 import '../services/api_client.dart';
+import '../services/hrms_api_client.dart';
 import '../services/injectable.dart';
 import 'alcohol_test_provider.dart';
 import 'announcements_provider.dart';
@@ -21,6 +22,7 @@ import 'vehicle_provider.dart';
 List<SingleChildWidget> get appProviders {
   return [
     Provider(create: (_) => getIt<ApiClient>()),
+    Provider(create: (_) => getIt<HrmsApiClient>()),
     Provider(create: (_) => getIt<AnalyticsService>()),
 
     ChangeNotifierProvider(create: (_) => getIt<AuthProvider>()),
