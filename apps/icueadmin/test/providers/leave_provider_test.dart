@@ -325,7 +325,6 @@ void main() {
           await leaveProvider.fetchAppliedLeaves(
             employeeId: 101,
             status: 'Requested',
-            refresh: false,
           );
           expect(mockHrmsApiClient.lastGetPath, isNull);
 
