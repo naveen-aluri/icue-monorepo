@@ -34,12 +34,12 @@ class UserInfoAdapter extends TypeAdapter<UserInfo> {
       loginType: fields[6] as String,
       wardId: fields[16] as dynamic,
       enableVirtualClassRoom: fields[20] as bool?,
-      enableVoice: fields[21] as bool?,
-      enableVroomItAdminApproval: fields[22] as bool?,
       enableVroomMeeting: fields[23] as bool?,
-      isAudioBridgeEnabled: fields[24] as bool?,
-      isTextChatEnabled: fields[25] as bool?,
+      enableVroomItAdminApproval: fields[22] as bool?,
+      enableVoice: fields[21] as bool?,
       isWebRtcEnabled: fields[26] as bool?,
+      isTextChatEnabled: fields[25] as bool?,
+      isAudioBridgeEnabled: fields[24] as bool?,
       isTeacherConfigurationEnabled: fields[27] as bool?,
       token: fields[13] as String,
       isFirstLogin: fields[4] as bool,
@@ -164,40 +164,6 @@ class UserClassAdapter extends TypeAdapter<UserClass> {
           typeId == other.typeId;
 }
 
-class RoleAdapter extends TypeAdapter<Role> {
-  @override
-  final int typeId = 3;
-
-  @override
-  Role read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return Role(id: fields[0] as int, name: fields[1] as String);
-  }
-
-  @override
-  void write(BinaryWriter writer, Role obj) {
-    writer
-      ..writeByte(2)
-      ..writeByte(0)
-      ..write(obj.id)
-      ..writeByte(1)
-      ..write(obj.name);
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is RoleAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}
-
 class SubjectInfoAdapter extends TypeAdapter<SubjectInfo> {
   @override
   final int typeId = 23;
@@ -245,7 +211,10 @@ class SubjectAdapter extends TypeAdapter<Subject> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Subject(subjectId: fields[0] as int, subject: fields[1] as String);
+    return Subject(
+      subjectId: fields[0] as int,
+      subject: fields[1] as String,
+    );
   }
 
   @override
@@ -265,6 +234,43 @@ class SubjectAdapter extends TypeAdapter<Subject> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is SubjectAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class RoleAdapter extends TypeAdapter<Role> {
+  @override
+  final int typeId = 3;
+
+  @override
+  Role read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return Role(
+      id: fields[0] as int,
+      name: fields[1] as String,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Role obj) {
+    writer
+      ..writeByte(2)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.name);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RoleAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

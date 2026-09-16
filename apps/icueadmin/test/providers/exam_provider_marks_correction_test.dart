@@ -50,49 +50,55 @@ void main() {
   });
 
   group('ExamProvider Marks Correction API Tests', () {
-    test('requestMarksCorrection posts correct payload and parses response', () async {
-      mockApiClient.nextResponseData = {
-        'success': true,
-        'message':
-            'Marks correction request submitted successfully for Principal approval',
-        'ExamId': 30,
-        'StudentId': 41294,
-        'CurrentMarks': null,
-        'CurrentStatus': 'NA',
-        'RequestedMarks': 38,
-        'RequestedStatus': 'PRESENT',
-        'CorrectionStatus': 'Pending',
-        'CorrectionStatusAt': '2026-09-12T06:46:07.262Z',
-      };
-
-      final response = await provider.requestMarksCorrection(
-        examId: 30,
-        studentId: 41294,
-        newMarks: 38,
-        newStatus: '',
-        reason: 'By mistake Absent select',
-        showLoading: false,
-      );
-
-      expect(mockApiClient.lastPostPath, equals('/v1.0/requestMarksCorrection'));
-      expect(
-        mockApiClient.lastPostData,
-        equals({
+    test(
+      'requestMarksCorrection posts correct payload and parses response',
+      () async {
+        mockApiClient.nextResponseData = {
+          'success': true,
+          'message':
+              'Marks correction request submitted successfully for Principal approval',
           'ExamId': 30,
           'StudentId': 41294,
-          'NewMarks': 38,
-          'NewStatus': '',
-          'Reason': 'By mistake Absent select',
-        }),
-      );
+          'CurrentMarks': null,
+          'CurrentStatus': 'NA',
+          'RequestedMarks': 38,
+          'RequestedStatus': 'PRESENT',
+          'CorrectionStatus': 'Pending',
+          'CorrectionStatusAt': '2026-09-12T06:46:07.262Z',
+        };
 
-      expect(response.success, isTrue);
-      expect(response.err, isFalse);
-      expect(response.examId, equals(30));
-      expect(response.studentId, equals(41294));
-      expect(response.requestedMarks, equals(38));
-      expect(response.requestedStatus, equals('PRESENT'));
-    });
+        final response = await provider.requestMarksCorrection(
+          examId: 30,
+          studentId: 41294,
+          newMarks: 38,
+          newStatus: '',
+          reason: 'By mistake Absent select',
+          showLoading: false,
+        );
+
+        expect(
+          mockApiClient.lastPostPath,
+          equals('/v1.0/requestMarksCorrection'),
+        );
+        expect(
+          mockApiClient.lastPostData,
+          equals({
+            'ExamId': 30,
+            'StudentId': 41294,
+            'NewMarks': 38,
+            'NewStatus': '',
+            'Reason': 'By mistake Absent select',
+          }),
+        );
+
+        expect(response.success, isTrue);
+        expect(response.err, isFalse);
+        expect(response.examId, equals(30));
+        expect(response.studentId, equals(41294));
+        expect(response.requestedMarks, equals(38));
+        expect(response.requestedStatus, equals('PRESENT'));
+      },
+    );
 
     test('requestMarksCorrection handles error response gracefully', () async {
       mockApiClient.nextResponseData = {
@@ -119,163 +125,170 @@ void main() {
       );
     });
 
-    test('getMarksCorrectionRequests fetches data and updates provider state', () async {
-      mockApiClient.nextResponseData = {
-        'err': false,
-        'message': 'Marks Correction Requests',
-        'data': [
-          {
-            'ExamId': 30,
-            'StudentId': 41292,
-            'StudentName': 'Sree',
-            'RollNo': '123123',
-            'AdmissionNumber': '123123',
-            'Section': 'A',
-            'ClassId': 3890,
-            'Standard': 'Standard 10',
-            'ExamName': 'assignment test - 1',
-            'Subject': 'Telugu',
-            'MaximumMarks': 50,
-            'PassingMarks': 35,
-            'CurrentMarks': 35,
-            'CurrentStatus': 'PRESENT',
-            'Correction': {
-              'Status': 'Pending',
-              'Marks': 40,
-              'MarkStatus': 'PRESENT',
-              'Reason': 'Re-evaluation of question 4',
-              'RequestedBy': 'sbranch',
-              'RequestedDate': '2026-09-12T06:13:10.716Z',
+    test(
+      'getMarksCorrectionRequests fetches data and updates provider state',
+      () async {
+        mockApiClient.nextResponseData = {
+          'err': false,
+          'message': 'Marks Correction Requests',
+          'data': [
+            {
+              'ExamId': 30,
+              'StudentId': 41292,
+              'StudentName': 'Sree',
+              'RollNo': '123123',
+              'AdmissionNumber': '123123',
+              'Section': 'A',
+              'ClassId': 3890,
+              'Standard': 'Standard 10',
+              'ExamName': 'assignment test - 1',
+              'Subject': 'Telugu',
+              'MaximumMarks': 50,
+              'PassingMarks': 35,
+              'CurrentMarks': 35,
+              'CurrentStatus': 'PRESENT',
+              'Correction': {
+                'Status': 'Pending',
+                'Marks': 40,
+                'MarkStatus': 'PRESENT',
+                'Reason': 'Re-evaluation of question 4',
+                'RequestedBy': 'sbranch',
+                'RequestedDate': '2026-09-12T06:13:10.716Z',
+              },
+              'History': [],
             },
-            'History': [],
-          },
-          {
-            'ExamId': 30,
-            'StudentId': 41294,
-            'StudentName': 'T Varshitha Reddy',
-            'RollNo': 'TNS1234',
-            'AdmissionNumber': 'TNS1234',
-            'Section': 'A',
-            'ClassId': 3890,
-            'Standard': 'Standard 10',
-            'ExamName': 'assignment test - 1',
-            'Subject': 'Telugu',
-            'MaximumMarks': 50,
-            'PassingMarks': 35,
-            'CurrentMarks': 38,
-            'CurrentStatus': 'PRESENT',
-            'Correction': {
-              'Status': 'Pending',
-              'StatusAt': '2026-09-12T06:59:34.077Z',
-              'Marks': 38,
-              'MarkStatus': 'PRESENT',
-              'Reason': 'By mistake Absent select',
-              'RequestedId': 3,
-              'RequestedBy': 'Bsan@icue',
-              'RequestedDate': '2026-09-12T06:59:34.077Z',
+            {
+              'ExamId': 30,
+              'StudentId': 41294,
+              'StudentName': 'T Varshitha Reddy',
+              'RollNo': 'TNS1234',
+              'AdmissionNumber': 'TNS1234',
+              'Section': 'A',
+              'ClassId': 3890,
+              'Standard': 'Standard 10',
+              'ExamName': 'assignment test - 1',
+              'Subject': 'Telugu',
+              'MaximumMarks': 50,
+              'PassingMarks': 35,
+              'CurrentMarks': 38,
+              'CurrentStatus': 'PRESENT',
+              'Correction': {
+                'Status': 'Pending',
+                'StatusAt': '2026-09-12T06:59:34.077Z',
+                'Marks': 38,
+                'MarkStatus': 'PRESENT',
+                'Reason': 'By mistake Absent select',
+                'RequestedId': 3,
+                'RequestedBy': 'Bsan@icue',
+                'RequestedDate': '2026-09-12T06:59:34.077Z',
+              },
+              'History': [],
             },
-            'History': [],
-          },
-        ],
-      };
+          ],
+        };
 
-      expect(provider.marksCorrectionRequests, isEmpty);
+        expect(provider.marksCorrectionRequests, isEmpty);
 
-      final list = await provider.getMarksCorrectionRequests(
-        examId: 30,
-      );
+        final list = await provider.getMarksCorrectionRequests(examId: 30);
 
-      expect(
-        mockApiClient.lastPostPath,
-        equals('/v1.0/getMarksCorrectionRequests'),
-      );
-      expect(
-        mockApiClient.lastPostData,
-        equals({'CorrectionStatus': 'Pending', 'ExamId': 30}),
-      );
+        expect(
+          mockApiClient.lastPostPath,
+          equals('/v1.0/getMarksCorrectionRequests'),
+        );
+        expect(
+          mockApiClient.lastPostData,
+          equals({'CorrectionStatus': 'Pending', 'ExamId': 30}),
+        );
 
-      expect(list.length, equals(2));
-      expect(provider.marksCorrectionRequests.length, equals(2));
-      expect(provider.marksCorrectionRequests[0].studentName, equals('Sree'));
-      expect(
-        provider.marksCorrectionRequests[1].studentName,
-        equals('T Varshitha Reddy'),
-      );
-      expect(provider.loadingMarksCorrections, isFalse);
-    });
+        expect(list.length, equals(2));
+        expect(provider.marksCorrectionRequests.length, equals(2));
+        expect(provider.marksCorrectionRequests[0].studentName, equals('Sree'));
+        expect(
+          provider.marksCorrectionRequests[1].studentName,
+          equals('T Varshitha Reddy'),
+        );
+        expect(provider.loadingMarksCorrections, isFalse);
+      },
+    );
 
-    test('approveMarksCorrection updates state, removes pending request, and updates student', () async {
-      // Seed provider with students and pending requests
-      provider.students = [
-        ExamStudent(
-          studentId: 41294,
-          name: 'T Varshitha Reddy',
-          marks: 0,
-          status: 'NA',
-          isSaved: true,
-        ),
-      ];
-      provider.marksCorrectionRequests = [
-        MarksCorrectionItem(
-          examId: 30,
-          studentId: 41294,
-          studentName: 'T Varshitha Reddy',
-          currentMarks: 0,
-          currentStatus: 'NA',
-        ),
-        MarksCorrectionItem(
-          examId: 30,
-          studentId: 41292,
-          studentName: 'Sree',
-          currentMarks: 35,
-          currentStatus: 'PRESENT',
-        ),
-      ];
+    test(
+      'approveMarksCorrection updates state, removes pending request, and updates student',
+      () async {
+        // Seed provider with students and pending requests
+        provider.students = [
+          ExamStudent(
+            studentId: 41294,
+            name: 'T Varshitha Reddy',
+            marks: 0,
+            status: 'NA',
+            isSaved: true,
+          ),
+        ];
+        provider.marksCorrectionRequests = [
+          MarksCorrectionItem(
+            examId: 30,
+            studentId: 41294,
+            studentName: 'T Varshitha Reddy',
+            currentMarks: 0,
+            currentStatus: 'NA',
+          ),
+          MarksCorrectionItem(
+            examId: 30,
+            studentId: 41292,
+            studentName: 'Sree',
+            currentMarks: 35,
+            currentStatus: 'PRESENT',
+          ),
+        ];
 
-      mockApiClient.nextResponseData = {
-        'success': true,
-        'message': 'Marks correction request approved successfully',
-        'ExamId': 30,
-        'StudentId': 41294,
-        'Decision': 'Approved',
-        'Marks': 38,
-        'Status': 'PRESENT',
-        'ApprovedBy': 'Bsan@icue',
-        'ApprovedDate': '2026-09-12T06:47:36.260Z',
-      };
-
-      final response = await provider.approveMarksCorrection(
-        examId: 30,
-        studentId: 41294,
-        decision: 'Approved',
-        remarks: 'Marks verified and accepted by Principal',
-        showLoading: false,
-      );
-
-      expect(mockApiClient.lastPostPath, equals('/v1.0/approveMarksCorrection'));
-      expect(
-        mockApiClient.lastPostData,
-        equals({
+        mockApiClient.nextResponseData = {
+          'success': true,
+          'message': 'Marks correction request approved successfully',
           'ExamId': 30,
           'StudentId': 41294,
           'Decision': 'Approved',
-          'Remarks': 'Marks verified and accepted by Principal',
-        }),
-      );
+          'Marks': 38,
+          'Status': 'PRESENT',
+          'ApprovedBy': 'Bsan@icue',
+          'ApprovedDate': '2026-09-12T06:47:36.260Z',
+        };
 
-      expect(response.success, isTrue);
-      expect(response.marks, equals(38));
-      expect(response.status, equals('PRESENT'));
+        final response = await provider.approveMarksCorrection(
+          examId: 30,
+          studentId: 41294,
+          decision: 'Approved',
+          remarks: 'Marks verified and accepted by Principal',
+          showLoading: false,
+        );
 
-      // Student 41294 should be updated in local students list
-      final student = provider.students.first;
-      expect(student.marks, equals(38));
-      expect(student.status, equals('PRESENT'));
+        expect(
+          mockApiClient.lastPostPath,
+          equals('/v1.0/approveMarksCorrection'),
+        );
+        expect(
+          mockApiClient.lastPostData,
+          equals({
+            'ExamId': 30,
+            'StudentId': 41294,
+            'Decision': 'Approved',
+            'Remarks': 'Marks verified and accepted by Principal',
+          }),
+        );
 
-      // Approved item should be removed from marksCorrectionRequests list
-      expect(provider.marksCorrectionRequests.length, equals(1));
-      expect(provider.marksCorrectionRequests.first.studentId, equals(41292));
-    });
+        expect(response.success, isTrue);
+        expect(response.marks, equals(38));
+        expect(response.status, equals('PRESENT'));
+
+        // Student 41294 should be updated in local students list
+        final student = provider.students.first;
+        expect(student.marks, equals(38));
+        expect(student.status, equals('PRESENT'));
+
+        // Approved item should be removed from marksCorrectionRequests list
+        expect(provider.marksCorrectionRequests.length, equals(1));
+        expect(provider.marksCorrectionRequests.first.studentId, equals(41292));
+      },
+    );
 
     test('approveMarksCorrection handles no pending request error', () async {
       mockApiClient.nextResponseData = {
@@ -304,22 +317,14 @@ void main() {
 
     test('reset and clearMarksCorrectionRequests clear the list', () {
       provider.marksCorrectionRequests = [
-        MarksCorrectionItem(
-          examId: 30,
-          studentId: 41292,
-          studentName: 'Sree',
-        ),
+        MarksCorrectionItem(examId: 30, studentId: 41292, studentName: 'Sree'),
       ];
 
       provider.clearMarksCorrectionRequests();
       expect(provider.marksCorrectionRequests, isEmpty);
 
       provider.marksCorrectionRequests = [
-        MarksCorrectionItem(
-          examId: 30,
-          studentId: 41292,
-          studentName: 'Sree',
-        ),
+        MarksCorrectionItem(examId: 30, studentId: 41292, studentName: 'Sree'),
       ];
 
       provider.reset();

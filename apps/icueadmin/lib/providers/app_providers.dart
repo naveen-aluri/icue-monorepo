@@ -13,6 +13,7 @@ import 'driver_provider.dart';
 import 'exam_provider.dart';
 import 'expense_provider.dart';
 import 'gatepass_provider.dart';
+import 'home_assignment_provider.dart';
 import 'reports_provider.dart';
 import 'students_provider.dart';
 import 'vehicle_provider.dart';
@@ -34,5 +35,6 @@ List<SingleChildWidget> get appProviders {
     ChangeNotifierProvider(create: (_) => getIt<ReportsProvider>()),
     ChangeNotifierProvider(create: (_) => getIt<AlcoholTestProvider>()),
     ChangeNotifierProvider(create: (_) => getIt<ExamProvider>()),
+    ChangeNotifierProvider(create: (_) => getIt<HomeAssignmentProvider>()),
   ];
 }

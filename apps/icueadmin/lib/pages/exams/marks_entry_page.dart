@@ -229,7 +229,9 @@ class _MarksEntryPageState extends State<MarksEntryPage> {
       classes.addAll(scheduleClassesMap.values);
     }
 
-    if (selectedSchedule != null && selectedClass == null && classes.isNotEmpty) {
+    if (selectedSchedule != null &&
+        selectedClass == null &&
+        classes.isNotEmpty) {
       selectedClass = classes.firstWhereOrNull(
         (c) => c.classId == selectedSchedule!.classId,
       );

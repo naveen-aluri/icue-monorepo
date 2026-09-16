@@ -47,7 +47,8 @@ class RequestMarksCorrectionResponse {
   factory RequestMarksCorrectionResponse.fromJson(Map<String, dynamic> json) {
     final hasErr = json['err'] == true;
     final isExplicitSuccess = json['success'] == true;
-    final success = isExplicitSuccess ||
+    final success =
+        isExplicitSuccess ||
         (!hasErr && json['err'] != null) ||
         (json['err'] == null && json['CorrectionStatus'] != null);
     final err = hasErr || (json['success'] == false);
@@ -129,13 +130,13 @@ class GetMarksCorrectionRequestsResponse {
       message: json['message']?.toString() ?? '',
       data: rawData is List
           ? rawData
-              .whereType<Map>()
-              .map(
-                (x) => MarksCorrectionItem.fromJson(
-                  Map<String, dynamic>.from(x),
-                ),
-              )
-              .toList()
+                .whereType<Map>()
+                .map(
+                  (x) => MarksCorrectionItem.fromJson(
+                    Map<String, dynamic>.from(x),
+                  ),
+                )
+                .toList()
           : [],
     );
   }
@@ -172,48 +173,48 @@ class MarksCorrectionItem {
     this.history = const [],
   });
 
-  factory MarksCorrectionItem.fromJson(Map<String, dynamic> json) =>
-      MarksCorrectionItem(
-        examId: json['ExamId'] is int
-            ? json['ExamId'] as int
-            : int.tryParse(json['ExamId']?.toString() ?? '') ?? 0,
-        studentId: json['StudentId'] is int
-            ? json['StudentId'] as int
-            : int.tryParse(json['StudentId']?.toString() ?? '') ?? 0,
-        studentName: json['StudentName']?.toString() ??
-            json['Name']?.toString(),
-        rollNo: json['RollNo']?.toString(),
-        admissionNumber: json['AdmissionNumber']?.toString() ??
-            json['AdmissionNo']?.toString(),
-        section: json['Section']?.toString(),
-        classId: json['ClassId'] is int
-            ? json['ClassId'] as int
-            : int.tryParse(json['ClassId']?.toString() ?? ''),
-        standard: json['Standard']?.toString(),
-        examName: json['ExamName']?.toString(),
-        subject: json['Subject']?.toString(),
-        maximumMarks: json['MaximumMarks'] is num
-            ? json['MaximumMarks'] as num
-            : num.tryParse(json['MaximumMarks']?.toString() ?? ''),
-        passingMarks: json['PassingMarks'] is num
-            ? json['PassingMarks'] as num
-            : num.tryParse(json['PassingMarks']?.toString() ?? ''),
-        currentMarks: json['CurrentMarks'] is num
-            ? json['CurrentMarks'] as num
-            : num.tryParse(json['CurrentMarks']?.toString() ?? ''),
-        currentStatus: json['CurrentStatus']?.toString(),
-        correction: json['Correction'] is Map
-            ? Correction.fromJson(
-                Map<String, dynamic>.from(json['Correction'] as Map),
-              )
-            : null,
-        history: json['History'] is List
-            ? (json['History'] as List)
-                .whereType<Map>()
-                .map((x) => History.fromJson(Map<String, dynamic>.from(x)))
-                .toList()
-            : [],
-      );
+  factory MarksCorrectionItem.fromJson(
+    Map<String, dynamic> json,
+  ) => MarksCorrectionItem(
+    examId: json['ExamId'] is int
+        ? json['ExamId'] as int
+        : int.tryParse(json['ExamId']?.toString() ?? '') ?? 0,
+    studentId: json['StudentId'] is int
+        ? json['StudentId'] as int
+        : int.tryParse(json['StudentId']?.toString() ?? '') ?? 0,
+    studentName: json['StudentName']?.toString() ?? json['Name']?.toString(),
+    rollNo: json['RollNo']?.toString(),
+    admissionNumber:
+        json['AdmissionNumber']?.toString() ?? json['AdmissionNo']?.toString(),
+    section: json['Section']?.toString(),
+    classId: json['ClassId'] is int
+        ? json['ClassId'] as int
+        : int.tryParse(json['ClassId']?.toString() ?? ''),
+    standard: json['Standard']?.toString(),
+    examName: json['ExamName']?.toString(),
+    subject: json['Subject']?.toString(),
+    maximumMarks: json['MaximumMarks'] is num
+        ? json['MaximumMarks'] as num
+        : num.tryParse(json['MaximumMarks']?.toString() ?? ''),
+    passingMarks: json['PassingMarks'] is num
+        ? json['PassingMarks'] as num
+        : num.tryParse(json['PassingMarks']?.toString() ?? ''),
+    currentMarks: json['CurrentMarks'] is num
+        ? json['CurrentMarks'] as num
+        : num.tryParse(json['CurrentMarks']?.toString() ?? ''),
+    currentStatus: json['CurrentStatus']?.toString(),
+    correction: json['Correction'] is Map
+        ? Correction.fromJson(
+            Map<String, dynamic>.from(json['Correction'] as Map),
+          )
+        : null,
+    history: json['History'] is List
+        ? (json['History'] as List)
+              .whereType<Map>()
+              .map((x) => History.fromJson(Map<String, dynamic>.from(x)))
+              .toList()
+        : [],
+  );
 
   final String? admissionNumber;
   final int? classId;
@@ -306,7 +307,8 @@ class ApproveMarksCorrectionResponse {
   factory ApproveMarksCorrectionResponse.fromJson(Map<String, dynamic> json) {
     final hasErr = json['err'] == true;
     final isExplicitSuccess = json['success'] == true;
-    final success = isExplicitSuccess ||
+    final success =
+        isExplicitSuccess ||
         (!hasErr && json['err'] != null) ||
         (json['err'] == null && json['Decision'] != null);
     final err = hasErr || (json['success'] == false);

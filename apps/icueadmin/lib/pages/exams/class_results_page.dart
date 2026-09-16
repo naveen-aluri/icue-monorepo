@@ -153,8 +153,8 @@ class _ClassResultsPageState extends State<ClassResultsPage> {
     final passPercentage = evaluatedStudents > 0
         ? ((passCount / evaluatedStudents) * 100).toStringAsFixed(1)
         : (totalStudents > 0
-            ? ((passCount / totalStudents) * 100).toStringAsFixed(1)
-            : '0.0');
+              ? ((passCount / totalStudents) * 100).toStringAsFixed(1)
+              : '0.0');
 
     final validPercentages = allResults
         .where((r) => r.percentage != null)
@@ -630,9 +630,7 @@ class _ClassResultsPageState extends State<ClassResultsPage> {
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            allExpanded
-                                                ? 'Collapse'
-                                                : 'Expand',
+                                            allExpanded ? 'Collapse' : 'Expand',
                                             style: const TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w600,
@@ -788,9 +786,7 @@ class _ClassResultsPageState extends State<ClassResultsPage> {
                                         result.studentId,
                                       );
                                     } else {
-                                      _expandedStudentIds.add(
-                                        result.studentId,
-                                      );
+                                      _expandedStudentIds.add(result.studentId);
                                     }
                                   });
                                 },

@@ -164,7 +164,8 @@ class Correction {
     if (reason != null) 'Reason': reason,
     if (requestedId != null) 'RequestedId': requestedId,
     if (requestedBy != null) 'RequestedBy': requestedBy,
-    if (requestedDate != null) 'RequestedDate': requestedDate?.toIso8601String(),
+    if (requestedDate != null)
+      'RequestedDate': requestedDate?.toIso8601String(),
     if (approvedBy != null) 'ApprovedBy': approvedBy,
     if (approvedDate != null) 'ApprovedDate': approvedDate?.toIso8601String(),
   };

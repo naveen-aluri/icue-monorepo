@@ -88,4 +88,115 @@ void main() {
       );
     });
   });
+
+  group(
+    'RoleActions parsing for getActionsByRole response (Exams, Leaves, Home Assignments)',
+    () {
+      final responsePayload = [
+        {
+          'Id': 265,
+          'Name': 'Exam Mgmt - Admin App',
+          'DisplayName': 'Exam Mgmt',
+          'RouteState': 'layout.exams',
+          'Icon':
+              'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
+          'TabOrder': 1,
+          'SubActions': true,
+          'SubActionItems': [
+            {
+              'Id': 266,
+              'Name': 'Marks Entry - Admin App',
+              'DisplayName': 'Marks Entry',
+              'RouteState': 'layout.marksentry',
+              'Icon':
+                  'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
+              'TabOrder': 1,
+            },
+            {
+              'Id': 267,
+              'Name': 'Results - Admin App',
+              'DisplayName': 'Results',
+              'RouteState': 'layout.exam_results',
+              'Icon':
+                  'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
+              'TabOrder': 2,
+            },
+          ],
+        },
+        {
+          'Id': 270,
+          'Name': 'Leaves - Admin App',
+          'DisplayName': 'Leaves',
+          'RouteState': 'layout.leaves',
+          'Icon':
+              'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
+          'TabOrder': 1,
+          'SubActions': false,
+          'SubActionItems': [],
+        },
+        {
+          'Id': 269,
+          'Name': 'Home Assignments - Admin App',
+          'DisplayName': 'Home Assignments',
+          'RouteState': 'layout.homeassignments',
+          'Icon':
+              'https://stgthnxdev.blob.core.windows.net/appimgs/Attendance.png',
+          'TabOrder': 3,
+          'SubActions': false,
+          'SubActionItems': [],
+        },
+      ];
+
+      test('parses all actions including Leaves and Home Assignments', () {
+        final actions = responsePayload
+            .map((x) => RoleActions.fromJson(x))
+            .toList();
+        expect(actions.length, equals(3));
+
+        // Leaves
+        final leaves = actions.firstWhere(
+          (a) => a.routeState == 'layout.leaves',
+        );
+        expect(leaves.id, equals(270));
+        expect(leaves.name, equals('Leaves - Admin App'));
+        expect(leaves.displayName, equals('Leaves'));
+        expect(leaves.tabOrder, equals(1));
+        expect(leaves.subActions, isFalse);
+        expect(leaves.subActionItems, isEmpty);
+
+        // Home Assignments
+        final homeAssignments = actions.firstWhere(
+          (a) => a.routeState == 'layout.homeassignments',
+        );
+        expect(homeAssignments.id, equals(269));
+        expect(homeAssignments.name, equals('Home Assignments - Admin App'));
+        expect(homeAssignments.displayName, equals('Home Assignments'));
+        expect(homeAssignments.tabOrder, equals(3));
+        expect(homeAssignments.subActions, isFalse);
+        expect(homeAssignments.subActionItems, isEmpty);
+
+        // Sorting by tabOrder
+        actions.sort((a, b) => a.tabOrder.compareTo(b.tabOrder));
+        expect(actions[0].tabOrder, equals(1));
+        expect(actions[1].tabOrder, equals(1));
+        expect(actions[2].tabOrder, equals(3));
+      });
+
+      test('roundtrips Leaves and Home Assignments through toJson()', () {
+        final actions = responsePayload
+            .map((x) => RoleActions.fromJson(x))
+            .toList();
+        for (final action in actions) {
+          final jsonMap = action.toJson();
+          final roundtripped = RoleActions.fromJson(jsonMap);
+          expect(roundtripped.id, equals(action.id));
+          expect(roundtripped.name, equals(action.name));
+          expect(roundtripped.routeState, equals(action.routeState));
+          expect(roundtripped.displayName, equals(action.displayName));
+          expect(roundtripped.tabOrder, equals(action.tabOrder));
+          expect(roundtripped.subActions, equals(action.subActions));
+        }
+      });
+    },
+  );
 }

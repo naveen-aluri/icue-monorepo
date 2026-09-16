@@ -892,8 +892,8 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
                             const SizedBox(height: 16),
 
                             // Reason Section Header
-                            Row(
-                              children: const [
+                            const Row(
+                              children: [
                                 Text(
                                   'Reason for Correction',
                                   style: TextStyle(
@@ -1103,7 +1103,6 @@ class _StudentMarksEntryPageState extends State<StudentMarksEntryPage> {
                     child: Row(
                       children: [
                         Expanded(
-                          flex: 1,
                           child: SizedBox(
                             height: 44,
                             child: OutlinedButton(

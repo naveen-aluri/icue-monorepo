@@ -50,12 +50,7 @@ class _ExamResultsPageState extends State<ExamResultsPage> {
 
   void _loadStudentsForClass(int classId, String section) {
     final studentsProvider = context.read<StudentsProvider>();
-    studentsProvider.getStudents(
-      context,
-      classId,
-      [section],
-      pageNo: 1,
-    );
+    studentsProvider.getStudents(context, classId, [section], pageNo: 1);
   }
 
   Future<void> _onGenerateResults() async {
@@ -258,7 +253,8 @@ class _ExamResultsPageState extends State<ExamResultsPage> {
 
     // Students for selected class & section
     final List<StudentData> classStudents = studentsProvider.students;
-    final isCanGenerate = matchingClass != null &&
+    final isCanGenerate =
+        matchingClass != null &&
         effectiveSection != null &&
         selectedExamName != null &&
         selectedExamName!.isNotEmpty;
@@ -331,170 +327,442 @@ class _ExamResultsPageState extends State<ExamResultsPage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Configuration Card
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: generateBtnColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.tune_rounded,
-                            size: 20,
-                            color: generateBtnColor,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Results Configuration',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF1E293B),
-                              ),
-                            ),
-                            Text(
-                              'Select exam criteria to generate class results',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Spacer(),
-                        if (examProvider.loading || studentsProvider.studentsLoading)
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                      ],
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Configuration Card
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
                     ),
-                    const SizedBox(height: 16),
-                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                    const SizedBox(height: 16),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: generateBtnColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.tune_rounded,
+                              size: 20,
+                              color: generateBtnColor,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Results Configuration',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1E293B),
+                                ),
+                              ),
+                              Text(
+                                'Select exam criteria to generate class results',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          if (examProvider.loading ||
+                              studentsProvider.studentsLoading)
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      const SizedBox(height: 16),
 
-                    // 1. Academic Year & Exam Name Row
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isCompact = constraints.maxWidth < 600;
+                      // 1. Academic Year & Exam Name Row
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isCompact = constraints.maxWidth < 600;
 
-                        final academicYearField = _buildDropdownField<String>(
-                          label: 'Academic Year',
-                          value: matchingYear,
-                          hint: 'Select year',
-                          selectedItemBuilder: (context) {
-                            return availableYears.map((year) {
-                              return Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  year,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF0F172A),
-                                    fontWeight: FontWeight.w400,
+                          final academicYearField = _buildDropdownField<String>(
+                            label: 'Academic Year',
+                            value: matchingYear,
+                            hint: 'Select year',
+                            selectedItemBuilder: (context) {
+                              return availableYears.map((year) {
+                                return Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    year,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF0F172A),
+                                      fontWeight: FontWeight.w400,
+                                    ),
                                   ),
+                                );
+                              }).toList();
+                            },
+                            items: availableYears.map((year) {
+                              final isSelected = year == matchingYear;
+                              return DropdownMenuItem(
+                                value: year,
+                                child: Row(
+                                  children: [
+                                    if (isSelected) ...[
+                                      const Icon(
+                                        Icons.check,
+                                        size: 16,
+                                        color: Color(0xFF1E293B),
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ] else ...[
+                                      const SizedBox(width: 24),
+                                    ],
+                                    Text(
+                                      year,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.w400,
+                                        color: const Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               );
-                            }).toList();
-                          },
-                          items: availableYears.map((year) {
-                            final isSelected = year == matchingYear;
-                            return DropdownMenuItem(
-                              value: year,
-                              child: Row(
-                                children: [
-                                  if (isSelected) ...[
-                                    const Icon(
-                                      Icons.check,
-                                      size: 16,
-                                      color: Color(0xFF1E293B),
-                                    ),
-                                    const SizedBox(width: 8),
-                                  ] else ...[
-                                    const SizedBox(width: 24),
-                                  ],
-                                  Text(
-                                    year,
-                                    style: TextStyle(
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null && val != selectedAcademicYear) {
+                                setState(() {
+                                  selectedAcademicYear = val;
+                                  selectedExamName = null;
+                                });
+                                examProvider.getPrepExams(selectedAcademicYear);
+                              }
+                            },
+                          );
+
+                          final examNameField = _buildDropdownField<String>(
+                            label: 'Exam Name',
+                            value: allExamNames.contains(selectedExamName)
+                                ? selectedExamName
+                                : null,
+                            hint: allExamNames.isEmpty
+                                ? 'No exams found'
+                                : 'Select exam',
+                            isEnabled: allExamNames.isNotEmpty,
+                            selectedItemBuilder: (context) {
+                              return allExamNames.map((name) {
+                                return Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    name,
+                                    style: const TextStyle(
                                       fontSize: 14,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.w400,
-                                      color: const Color(0xFF1E293B),
+                                      color: Color(0xFF0F172A),
+                                      fontWeight: FontWeight.w400,
                                     ),
                                   ),
-                                ],
+                                );
+                              }).toList();
+                            },
+                            items: allExamNames.map((name) {
+                              final isSelected = name == selectedExamName;
+                              return DropdownMenuItem(
+                                value: name,
+                                child: Row(
+                                  children: [
+                                    if (isSelected) ...[
+                                      const Icon(
+                                        Icons.check,
+                                        size: 16,
+                                        color: Color(0xFF1E293B),
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ] else ...[
+                                      const SizedBox(width: 24),
+                                    ],
+                                    Expanded(
+                                      child: Text(
+                                        name,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.w400,
+                                          color: const Color(0xFF1E293B),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              setState(() => selectedExamName = val);
+                            },
+                          );
+
+                          if (isCompact) {
+                            return Column(
+                              children: [
+                                academicYearField,
+                                const SizedBox(height: 14),
+                                examNameField,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              Expanded(child: academicYearField),
+                              const SizedBox(width: 14),
+                              Expanded(child: examNameField),
+                            ],
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // 2. Class / Standard & Section Row
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isCompact = constraints.maxWidth < 600;
+
+                          final classField =
+                              _buildDropdownField<ExamClassOption>(
+                                label: 'Class / Standard',
+                                value: matchingClass,
+                                hint: classes.isEmpty
+                                    ? 'No classes found'
+                                    : 'Select class',
+                                isEnabled: classes.isNotEmpty,
+                                selectedItemBuilder: (context) {
+                                  return classes.map((c) {
+                                    return Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        c.standard,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFF0F172A),
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList();
+                                },
+                                items: classes.map((c) {
+                                  final isSelected =
+                                      c.classId == matchingClass?.classId;
+                                  return DropdownMenuItem(
+                                    value: c,
+                                    child: Row(
+                                      children: [
+                                        if (isSelected) ...[
+                                          const Icon(
+                                            Icons.check,
+                                            size: 16,
+                                            color: Color(0xFF1E293B),
+                                          ),
+                                          const SizedBox(width: 8),
+                                        ] else ...[
+                                          const SizedBox(width: 24),
+                                        ],
+                                        Text(
+                                          c.standard,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                            color: const Color(0xFF1E293B),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setState(() {
+                                      selectedClass = val;
+                                      selectedSection = null;
+                                      selectedStudentId = null;
+                                      selectedStudentName = null;
+                                    });
+                                  }
+                                },
+                              );
+
+                          final sectionField = _buildDropdownField<String>(
+                            label: 'Section',
+                            value: effectiveSection,
+                            hint: sectionOptions.isEmpty
+                                ? 'No sections'
+                                : 'Select section',
+                            isEnabled: sectionOptions.isNotEmpty,
+                            selectedItemBuilder: (context) {
+                              return sectionOptions.map((sec) {
+                                return Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Section $sec',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF0F172A),
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                );
+                              }).toList();
+                            },
+                            items: sectionOptions.map((sec) {
+                              final isSelected = sec == effectiveSection;
+                              return DropdownMenuItem(
+                                value: sec,
+                                child: Row(
+                                  children: [
+                                    if (isSelected) ...[
+                                      const Icon(
+                                        Icons.check,
+                                        size: 16,
+                                        color: Color(0xFF1E293B),
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ] else ...[
+                                      const SizedBox(width: 24),
+                                    ],
+                                    Text(
+                                      'Section $sec',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.w400,
+                                        color: const Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() {
+                                  selectedSection = val;
+                                  selectedStudentId = null;
+                                  selectedStudentName = null;
+                                });
+                                if (matchingClass != null) {
+                                  _loadStudentsForClass(
+                                    matchingClass.classId,
+                                    val,
+                                  );
+                                }
+                              }
+                            },
+                          );
+
+                          if (isCompact) {
+                            return Column(
+                              children: [
+                                classField,
+                                const SizedBox(height: 14),
+                                sectionField,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              Expanded(child: classField),
+                              const SizedBox(width: 14),
+                              Expanded(child: sectionField),
+                            ],
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // 3. Student Filter Dropdown (matching Web UI)
+                      _buildDropdownField<int?>(
+                        label: 'Student',
+                        value: selectedStudentId,
+                        hint: 'All students',
+                        selectedItemBuilder: (context) {
+                          final items = <int?, String>{null: 'All students'};
+                          for (final s in classStudents) {
+                            items[s.id] = s.name;
+                          }
+                          return items.entries.map((e) {
+                            return Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                e.value,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF0F172A),
+                                  fontWeight: FontWeight.w400,
+                                ),
                               ),
                             );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null && val != selectedAcademicYear) {
-                              setState(() {
-                                selectedAcademicYear = val;
-                                selectedExamName = null;
-                              });
-                              examProvider.getPrepExams(selectedAcademicYear);
-                            }
-                          },
-                        );
-
-                        final examNameField = _buildDropdownField<String>(
-                          label: 'Exam Name',
-                          value: allExamNames.contains(selectedExamName)
-                              ? selectedExamName
-                              : null,
-                          hint: allExamNames.isEmpty
-                              ? 'No exams found'
-                              : 'Select exam',
-                          isEnabled: allExamNames.isNotEmpty,
-                          selectedItemBuilder: (context) {
-                            return allExamNames.map((name) {
-                              return Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  name,
-                                  style: const TextStyle(
+                          }).toList();
+                        },
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.people_alt_outlined,
+                                  size: 16,
+                                  color: Color(0xFF64748B),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'All students',
+                                  style: TextStyle(
                                     fontSize: 14,
-                                    color: Color(0xFF0F172A),
-                                    fontWeight: FontWeight.w400,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1E293B),
                                   ),
                                 ),
-                              );
-                            }).toList();
-                          },
-                          items: allExamNames.map((name) {
-                            final isSelected = name == selectedExamName;
-                            return DropdownMenuItem(
-                              value: name,
+                              ],
+                            ),
+                          ),
+                          ...classStudents.map((s) {
+                            final isSelected = s.id == selectedStudentId;
+                            final roll = s.rollNo.isNotEmpty
+                                ? ' (Roll: ${s.rollNo})'
+                                : '';
+                            return DropdownMenuItem<int?>(
+                              value: s.id,
                               child: Row(
                                 children: [
                                   if (isSelected) ...[
@@ -509,7 +777,7 @@ class _ExamResultsPageState extends State<ExamResultsPage> {
                                   ],
                                   Expanded(
                                     child: Text(
-                                      name,
+                                      '${s.name}$roll',
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 14,
@@ -523,333 +791,63 @@ class _ExamResultsPageState extends State<ExamResultsPage> {
                                 ],
                               ),
                             );
-                          }).toList(),
-                          onChanged: (val) {
-                            setState(() => selectedExamName = val);
-                          },
-                        );
-
-                        if (isCompact) {
-                          return Column(
-                            children: [
-                              academicYearField,
-                              const SizedBox(height: 14),
-                              examNameField,
-                            ],
-                          );
-                        }
-
-                        return Row(
-                          children: [
-                            Expanded(child: academicYearField),
-                            const SizedBox(width: 14),
-                            Expanded(child: examNameField),
-                          ],
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // 2. Class / Standard & Section Row
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isCompact = constraints.maxWidth < 600;
-
-                        final classField =
-                            _buildDropdownField<ExamClassOption>(
-                          label: 'Class / Standard',
-                          value: matchingClass,
-                          hint: classes.isEmpty
-                              ? 'No classes found'
-                              : 'Select class',
-                          isEnabled: classes.isNotEmpty,
-                          selectedItemBuilder: (context) {
-                            return classes.map((c) {
-                              return Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  c.standard,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF0F172A),
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                              );
-                            }).toList();
-                          },
-                          items: classes.map((c) {
-                            final isSelected = c.classId == matchingClass?.classId;
-                            return DropdownMenuItem(
-                              value: c,
-                              child: Row(
-                                children: [
-                                  if (isSelected) ...[
-                                    const Icon(
-                                      Icons.check,
-                                      size: 16,
-                                      color: Color(0xFF1E293B),
-                                    ),
-                                    const SizedBox(width: 8),
-                                  ] else ...[
-                                    const SizedBox(width: 24),
-                                  ],
-                                  Text(
-                                    c.standard,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.w400,
-                                      color: const Color(0xFF1E293B),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
+                          }),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            selectedStudentId = val;
                             if (val != null) {
-                              setState(() {
-                                selectedClass = val;
-                                selectedSection = null;
-                                selectedStudentId = null;
-                                selectedStudentName = null;
-                              });
-                            }
-                          },
-                        );
-
-                        final sectionField = _buildDropdownField<String>(
-                          label: 'Section',
-                          value: effectiveSection,
-                          hint: sectionOptions.isEmpty
-                              ? 'No sections'
-                              : 'Select section',
-                          isEnabled: sectionOptions.isNotEmpty,
-                          selectedItemBuilder: (context) {
-                            return sectionOptions.map((sec) {
-                              return Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  'Section $sec',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF0F172A),
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
+                              final match = classStudents.firstWhereOrNull(
+                                (s) => s.id == val,
                               );
-                            }).toList();
-                          },
-                          items: sectionOptions.map((sec) {
-                            final isSelected = sec == effectiveSection;
-                            return DropdownMenuItem(
-                              value: sec,
-                              child: Row(
-                                children: [
-                                  if (isSelected) ...[
-                                    const Icon(
-                                      Icons.check,
-                                      size: 16,
-                                      color: Color(0xFF1E293B),
-                                    ),
-                                    const SizedBox(width: 8),
-                                  ] else ...[
-                                    const SizedBox(width: 24),
-                                  ],
-                                  Text(
-                                    'Section $sec',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.w400,
-                                      color: const Color(0xFF1E293B),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                selectedSection = val;
-                                selectedStudentId = null;
-                                selectedStudentName = null;
-                              });
-                              if (matchingClass != null) {
-                                _loadStudentsForClass(
-                                  matchingClass.classId,
-                                  val,
-                                );
-                              }
+                              selectedStudentName = match?.name;
+                            } else {
+                              selectedStudentName = null;
                             }
-                          },
-                        );
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
-                        if (isCompact) {
-                          return Column(
-                            children: [
-                              classField,
-                              const SizedBox(height: 14),
-                              sectionField,
-                            ],
-                          );
-                        }
+              const SizedBox(height: 16),
 
-                        return Row(
-                          children: [
-                            Expanded(child: classField),
-                            const SizedBox(width: 14),
-                            Expanded(child: sectionField),
-                          ],
-                        );
-                      },
+              // Instructional tip / summary
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      size: 18,
+                      color: Color(0xFF64748B),
                     ),
-
-                    const SizedBox(height: 14),
-
-                    // 3. Student Filter Dropdown (matching Web UI)
-                    _buildDropdownField<int?>(
-                      label: 'Student',
-                      value: selectedStudentId,
-                      hint: 'All students',
-                      selectedItemBuilder: (context) {
-                        final items = <int?, String>{null: 'All students'};
-                        for (final s in classStudents) {
-                          items[s.id] = s.name;
-                        }
-                        return items.entries.map((e) {
-                          return Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              e.value,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF0F172A),
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          );
-                        }).toList();
-                      },
-                      items: [
-                        const DropdownMenuItem<int?>(
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.people_alt_outlined,
-                                size: 16,
-                                color: Color(0xFF64748B),
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'All students',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1E293B),
-                                ),
-                              ),
-                            ],
-                          ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        isCanGenerate
+                            ? 'Ready to generate results for ${matchingClass.standard} Sec $effectiveSection (${selectedExamName!}).'
+                            : 'Please select an Exam Name, Class, and Section to generate class results.',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF475569),
+                          fontWeight: FontWeight.w500,
                         ),
-                        ...classStudents.map((s) {
-                          final isSelected = s.id == selectedStudentId;
-                          final roll = s.rollNo.isNotEmpty
-                              ? ' (Roll: ${s.rollNo})'
-                              : '';
-                          return DropdownMenuItem<int?>(
-                            value: s.id,
-                            child: Row(
-                              children: [
-                                if (isSelected) ...[
-                                  const Icon(
-                                    Icons.check,
-                                    size: 16,
-                                    color: Color(0xFF1E293B),
-                                  ),
-                                  const SizedBox(width: 8),
-                                ] else ...[
-                                  const SizedBox(width: 24),
-                                ],
-                                Expanded(
-                                  child: Text(
-                                    '${s.name}$roll',
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.w400,
-                                      color: const Color(0xFF1E293B),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                      ],
-                      onChanged: (val) {
-                        setState(() {
-                          selectedStudentId = val;
-                          if (val != null) {
-                            final match = classStudents.firstWhereOrNull(
-                              (s) => s.id == val,
-                            );
-                            selectedStudentName = match?.name;
-                          } else {
-                            selectedStudentName = null;
-                          }
-                        });
-                      },
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Instructional tip / summary
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.info_outline_rounded,
-                    size: 18,
-                    color: Color(0xFF64748B),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      isCanGenerate
-                          ? 'Ready to generate results for ${matchingClass.standard} Sec $effectiveSection (${selectedExamName!}).'
-                          : 'Please select an Exam Name, Class, and Section to generate class results.',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF475569),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

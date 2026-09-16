@@ -489,128 +489,126 @@ void main() {
       expect(savedStudent.marks, equals(28.5));
 
       // Saved student: ABSENT
-      final absentJson = {
-        'Id': 103,
-        'Name': 'Ankit',
-        'Status': 'ABSENT',
-      };
+      final absentJson = {'Id': 103, 'Name': 'Ankit', 'Status': 'ABSENT'};
       final absentStudent = ExamStudent.fromJson(absentJson);
       expect(absentStudent.isSaved, isTrue);
       expect(absentStudent.status, equals('ABSENT'));
 
       // Saved student: NA
-      final naJson = {
-        'Id': 104,
-        'Name': 'Sara',
-        'Status': 'NA',
-      };
+      final naJson = {'Id': 104, 'Name': 'Sara', 'Status': 'NA'};
       final naStudent = ExamStudent.fromJson(naJson);
       expect(naStudent.isSaved, isTrue);
       expect(naStudent.status, equals('NA'));
     });
 
-    test('ExamResult and SubjectMark validate isPassed, isFailed, and displayPercentage', () {
-      final passResult = ExamResult(
-        studentId: 1,
-        studentName: 'Student 1',
-        result: 'PASSED',
-        percentage: 85.5,
-      );
-      expect(passResult.isPassed, isTrue);
-      expect(passResult.isFailed, isFalse);
-      expect(passResult.displayPercentage, equals('85.50%'));
+    test(
+      'ExamResult and SubjectMark validate isPassed, isFailed, and displayPercentage',
+      () {
+        final passResult = ExamResult(
+          studentId: 1,
+          studentName: 'Student 1',
+          result: 'PASSED',
+          percentage: 85.5,
+        );
+        expect(passResult.isPassed, isTrue);
+        expect(passResult.isFailed, isFalse);
+        expect(passResult.displayPercentage, equals('85.50%'));
 
-      final failResult = ExamResult(
-        studentId: 2,
-        studentName: 'Student 2',
-        result: 'FAIL',
-        percentage: 32.0,
-      );
-      expect(failResult.isPassed, isFalse);
-      expect(failResult.isFailed, isTrue);
-      expect(failResult.displayPercentage, equals('32%'));
+        final failResult = ExamResult(
+          studentId: 2,
+          studentName: 'Student 2',
+          result: 'FAIL',
+          percentage: 32.0,
+        );
+        expect(failResult.isPassed, isFalse);
+        expect(failResult.isFailed, isTrue);
+        expect(failResult.displayPercentage, equals('32%'));
 
-      final naResult = ExamResult(
-        studentId: 3,
-        studentName: 'Student 3',
-        result: 'N/A',
-      );
-      expect(naResult.isPassed, isFalse);
-      expect(naResult.isFailed, isFalse);
+        final naResult = ExamResult(
+          studentId: 3,
+          studentName: 'Student 3',
+          result: 'N/A',
+        );
+        expect(naResult.isPassed, isFalse);
+        expect(naResult.isFailed, isFalse);
 
-      // SubjectMark pass check with marks >= passingMarks
-      final subPass = SubjectMark(
-        subjectId: 1,
-        subject: 'Math',
-        marks: 40,
-        passingMarks: 35,
-      );
-      expect(subPass.isPassed, isTrue);
+        // SubjectMark pass check with marks >= passingMarks
+        final subPass = SubjectMark(
+          subjectId: 1,
+          subject: 'Math',
+          marks: 40,
+          passingMarks: 35,
+        );
+        expect(subPass.isPassed, isTrue);
 
-      final subFail = SubjectMark(
-        subjectId: 1,
-        subject: 'Math',
-        marks: 30,
-        passingMarks: 35,
-      );
-      expect(subFail.isPassed, isFalse);
-    });
+        final subFail = SubjectMark(
+          subjectId: 1,
+          subject: 'Math',
+          marks: 30,
+          passingMarks: 35,
+        );
+        expect(subFail.isPassed, isFalse);
+      },
+    );
 
-    test('ExamStudent handles hasExistingMarks and isCorrectionPending correctly', () {
-      // Case 1: Student with existing marks
-      final studentWithMarks = ExamStudent.fromJson({
-        'StudentId': 101,
-        'StudentName': 'Alice',
-        'Marks': 45,
-        'Status': 'PRESENT',
-      });
-      expect(studentWithMarks.hasExistingMarks, isTrue);
-      expect(studentWithMarks.isCorrectionPending, isFalse);
+    test(
+      'ExamStudent handles hasExistingMarks and isCorrectionPending correctly',
+      () {
+        // Case 1: Student with existing marks
+        final studentWithMarks = ExamStudent.fromJson({
+          'StudentId': 101,
+          'StudentName': 'Alice',
+          'Marks': 45,
+          'Status': 'PRESENT',
+        });
+        expect(studentWithMarks.hasExistingMarks, isTrue);
+        expect(studentWithMarks.isCorrectionPending, isFalse);
 
-      // Case 2: Student marked as ABSENT
-      final studentAbsent = ExamStudent.fromJson({
-        'StudentId': 102,
-        'StudentName': 'Bob',
-        'Marks': null,
-        'Status': 'ABSENT',
-      });
-      expect(studentAbsent.hasExistingMarks, isTrue);
+        // Case 2: Student marked as ABSENT
+        final studentAbsent = ExamStudent.fromJson({
+          'StudentId': 102,
+          'StudentName': 'Bob',
+          'Marks': null,
+          'Status': 'ABSENT',
+        });
+        expect(studentAbsent.hasExistingMarks, isTrue);
 
-      // Case 3: Fresh student with no marks
-      final freshStudent = ExamStudent.fromJson({
-        'StudentId': 103,
-        'StudentName': 'Charlie',
-        'Marks': null,
-        'Status': 'Active',
-      });
-      expect(freshStudent.hasExistingMarks, isFalse);
-      expect(freshStudent.isCorrectionPending, isFalse);
+        // Case 3: Fresh student with no marks
+        final freshStudent = ExamStudent.fromJson({
+          'StudentId': 103,
+          'StudentName': 'Charlie',
+          'Marks': null,
+          'Status': 'Active',
+        });
+        expect(freshStudent.hasExistingMarks, isFalse);
+        expect(freshStudent.isCorrectionPending, isFalse);
 
-      // Case 4: Student with pending correction object
-      final pendingStudent = ExamStudent.fromJson({
-        'StudentId': 104,
-        'StudentName': 'Diana',
-        'Marks': 30,
-        'Status': 'PRESENT',
-        'Correction': {
-          'Status': 'Pending',
-          'Marks': 38,
-          'MarkStatus': 'PRESENT',
-          'Reason': 'Review needed',
-        },
-      });
-      expect(pendingStudent.hasExistingMarks, isTrue);
-      expect(pendingStudent.isCorrectionPending, isTrue);
-      expect(pendingStudent.correction, isNotNull);
-      expect(pendingStudent.correction?.marks, equals(38));
+        // Case 4: Student with pending correction object
+        final pendingStudent = ExamStudent.fromJson({
+          'StudentId': 104,
+          'StudentName': 'Diana',
+          'Marks': 30,
+          'Status': 'PRESENT',
+          'Correction': {
+            'Status': 'Pending',
+            'Marks': 38,
+            'MarkStatus': 'PRESENT',
+            'Reason': 'Review needed',
+          },
+        });
+        expect(pendingStudent.hasExistingMarks, isTrue);
+        expect(pendingStudent.isCorrectionPending, isTrue);
+        expect(pendingStudent.correction, isNotNull);
+        expect(pendingStudent.correction?.marks, equals(38));
 
-      // Test copyWith
-      final updated = pendingStudent.copyWith(
-        isCorrectionPending: false,
-        hasExistingMarks: false,
-      );
-      expect(updated.isCorrectionPending, isFalse);
-      expect(updated.hasExistingMarks, isFalse);
-    });
+        // Test copyWith
+        final updated = pendingStudent.copyWith(
+          isCorrectionPending: false,
+          hasExistingMarks: false,
+        );
+        expect(updated.isCorrectionPending, isFalse);
+        expect(updated.hasExistingMarks, isFalse);
+      },
+    );
   });
 }

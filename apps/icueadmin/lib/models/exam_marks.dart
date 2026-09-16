@@ -29,10 +29,12 @@ class ExamStudent {
 
     final hasMarks = parsedMarks != null;
     final isExplicitAttendance = rawStatus == 'ABSENT' || rawStatus == 'NA';
-    final isExplicitSaved = json['IsSaved'] == true ||
+    final isExplicitSaved =
+        json['IsSaved'] == true ||
         json['IsSaved'] == 1 ||
         json['IsSaved']?.toString().toLowerCase() == 'true';
-    final hasExistingMarks = json['HasExistingMarks'] == true ||
+    final hasExistingMarks =
+        json['HasExistingMarks'] == true ||
         hasMarks ||
         isExplicitAttendance ||
         isExplicitSaved;
@@ -43,7 +45,8 @@ class ExamStudent {
         Map<String, dynamic>.from(json['Correction'] as Map),
       );
     }
-    final isCorrectionPending = json['IsCorrectionPending'] == true ||
+    final isCorrectionPending =
+        json['IsCorrectionPending'] == true ||
         correction?.status?.trim().toLowerCase() == 'pending';
 
     return ExamStudent(
@@ -52,9 +55,7 @@ class ExamStudent {
           : json['Id'] is int
           ? json['Id'] as int
           : int.tryParse(
-                  json['StudentId']?.toString() ??
-                      json['Id']?.toString() ??
-                      '',
+                  json['StudentId']?.toString() ?? json['Id']?.toString() ?? '',
                 ) ??
                 0,
       classId: json['ClassId'] is int

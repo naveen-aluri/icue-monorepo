@@ -22,6 +22,9 @@ import '../../pages/fuel/fuel_page.dart';
 import '../../pages/gatepass/gatepass_page.dart';
 import '../../pages/gatepass/generate_gatepass_page.dart';
 import '../../pages/gatepass/pending_gatepass_page.dart';
+import '../../pages/home_assignments/create_home_assignment_page.dart';
+import '../../pages/home_assignments/home_assignments_page.dart';
+import '../../pages/leaves/leaves_page.dart';
 import '../../pages/log_book/add_complaint_page.dart';
 import '../../pages/log_book/alcohol_test/alcohol_test_report_page.dart';
 import '../../pages/log_book/alcohol_test_form_page.dart';
@@ -481,6 +484,36 @@ final GoRouter appRouter = GoRouter(
                 screenName: 'exam-results-page',
                 child: ExamResultsPage(),
               ),
+            ),
+
+            /// Leaves Route
+            GoRoute(
+              parentNavigatorKey: navigatorKey,
+              path: 'layout.leaves',
+              builder: (context, state) => const ScreenTracker(
+                screenName: 'leaves-page',
+                child: LeavesPage(),
+              ),
+            ),
+
+            /// Home Assignments Route
+            GoRoute(
+              parentNavigatorKey: navigatorKey,
+              path: 'layout.homeassignments',
+              builder: (context, state) => const ScreenTracker(
+                screenName: 'home-assignments-page',
+                child: HomeAssignmentsPage(),
+              ),
+              routes: [
+                GoRoute(
+                  parentNavigatorKey: navigatorKey,
+                  path: 'create',
+                  builder: (context, state) => const ScreenTracker(
+                    screenName: 'create-home-assignment-page',
+                    child: CreateHomeAssignmentPage(),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

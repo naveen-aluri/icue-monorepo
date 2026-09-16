@@ -86,165 +86,162 @@ void main() {
       expect(response.message, equals('Network failure'));
     });
 
-    test('GetMarksCorrectionRequestsResponse parses full dataset correctly', () {
-      final json = {
-        'err': false,
-        'message': 'Marks Correction Requests',
-        'data': [
-          {
-            'ExamId': 30,
-            'StudentId': 41292,
-            'StudentName': 'Sree',
-            'RollNo': '123123',
-            'AdmissionNumber': '123123',
-            'Section': 'A',
-            'ClassId': 3890,
-            'Standard': 'Standard 10',
-            'ExamName': 'assignment test - 1',
-            'Subject': 'Telugu',
-            'MaximumMarks': 50,
-            'PassingMarks': 35,
-            'CurrentMarks': 35,
-            'CurrentStatus': 'PRESENT',
-            'Correction': {
-              'Status': 'Pending',
-              'Marks': 40,
-              'MarkStatus': 'PRESENT',
-              'Reason': 'Re-evaluation of question 4',
-              'RequestedBy': 'sbranch',
-              'RequestedDate': '2026-09-12T06:13:10.716Z',
+    test(
+      'GetMarksCorrectionRequestsResponse parses full dataset correctly',
+      () {
+        final json = {
+          'err': false,
+          'message': 'Marks Correction Requests',
+          'data': [
+            {
+              'ExamId': 30,
+              'StudentId': 41292,
+              'StudentName': 'Sree',
+              'RollNo': '123123',
+              'AdmissionNumber': '123123',
+              'Section': 'A',
+              'ClassId': 3890,
+              'Standard': 'Standard 10',
+              'ExamName': 'assignment test - 1',
+              'Subject': 'Telugu',
+              'MaximumMarks': 50,
+              'PassingMarks': 35,
+              'CurrentMarks': 35,
+              'CurrentStatus': 'PRESENT',
+              'Correction': {
+                'Status': 'Pending',
+                'Marks': 40,
+                'MarkStatus': 'PRESENT',
+                'Reason': 'Re-evaluation of question 4',
+                'RequestedBy': 'sbranch',
+                'RequestedDate': '2026-09-12T06:13:10.716Z',
+              },
+              'History': [],
             },
-            'History': [],
-          },
-          {
-            'ExamId': 30,
-            'StudentId': 41294,
-            'StudentName': 'T Varshitha Reddy',
-            'RollNo': 'TNS1234',
-            'AdmissionNumber': 'TNS1234',
-            'Section': 'A',
-            'ClassId': 3890,
-            'Standard': 'Standard 10',
-            'ExamName': 'assignment test - 1',
-            'Subject': 'Telugu',
-            'MaximumMarks': 50,
-            'PassingMarks': 35,
-            'CurrentMarks': 38,
-            'CurrentStatus': 'PRESENT',
-            'Correction': {
-              'Status': 'Pending',
-              'StatusAt': '2026-09-12T06:59:34.077Z',
-              'Marks': 38,
-              'MarkStatus': 'PRESENT',
-              'Reason': 'By mistake Absent select',
-              'RequestedId': 3,
-              'RequestedBy': 'Bsan@icue',
-              'RequestedDate': '2026-09-12T06:59:34.077Z',
-            },
-            'History': [
-              {
-                'OldMarks': null,
-                'OldStatus': 'NA',
-                'CorrectionMarks': 38,
-                'CorrectionMarkStatus': 'PRESENT',
+            {
+              'ExamId': 30,
+              'StudentId': 41294,
+              'StudentName': 'T Varshitha Reddy',
+              'RollNo': 'TNS1234',
+              'AdmissionNumber': 'TNS1234',
+              'Section': 'A',
+              'ClassId': 3890,
+              'Standard': 'Standard 10',
+              'ExamName': 'assignment test - 1',
+              'Subject': 'Telugu',
+              'MaximumMarks': 50,
+              'PassingMarks': 35,
+              'CurrentMarks': 38,
+              'CurrentStatus': 'PRESENT',
+              'Correction': {
+                'Status': 'Pending',
+                'StatusAt': '2026-09-12T06:59:34.077Z',
+                'Marks': 38,
+                'MarkStatus': 'PRESENT',
                 'Reason': 'By mistake Absent select',
                 'RequestedId': 3,
                 'RequestedBy': 'Bsan@icue',
-                'RequestedDate': '2026-09-12T06:46:07.262Z',
-                'Decision': 'Approved',
-                'ApprovedId': 3,
-                'ApprovedBy': 'Bsan@icue',
-                'ApprovedDate': '2026-09-12T06:47:36.260Z',
-                'Remarks': 'Marks verified and accepted by Principal',
+                'RequestedDate': '2026-09-12T06:59:34.077Z',
               },
-            ],
-          },
-        ],
-      };
+              'History': [
+                {
+                  'OldMarks': null,
+                  'OldStatus': 'NA',
+                  'CorrectionMarks': 38,
+                  'CorrectionMarkStatus': 'PRESENT',
+                  'Reason': 'By mistake Absent select',
+                  'RequestedId': 3,
+                  'RequestedBy': 'Bsan@icue',
+                  'RequestedDate': '2026-09-12T06:46:07.262Z',
+                  'Decision': 'Approved',
+                  'ApprovedId': 3,
+                  'ApprovedBy': 'Bsan@icue',
+                  'ApprovedDate': '2026-09-12T06:47:36.260Z',
+                  'Remarks': 'Marks verified and accepted by Principal',
+                },
+              ],
+            },
+          ],
+        };
 
-      final response = GetMarksCorrectionRequestsResponse.fromJson(json);
+        final response = GetMarksCorrectionRequestsResponse.fromJson(json);
 
-      expect(response.err, isFalse);
-      expect(response.message, equals('Marks Correction Requests'));
-      expect(response.data.length, equals(2));
+        expect(response.err, isFalse);
+        expect(response.message, equals('Marks Correction Requests'));
+        expect(response.data.length, equals(2));
 
-      // First student
-      final item1 = response.data[0];
-      expect(item1.examId, equals(30));
-      expect(item1.studentId, equals(41292));
-      expect(item1.studentName, equals('Sree'));
-      expect(item1.rollNo, equals('123123'));
-      expect(item1.admissionNumber, equals('123123'));
-      expect(item1.section, equals('A'));
-      expect(item1.classId, equals(3890));
-      expect(item1.standard, equals('Standard 10'));
-      expect(item1.examName, equals('assignment test - 1'));
-      expect(item1.subject, equals('Telugu'));
-      expect(item1.maximumMarks, equals(50));
-      expect(item1.passingMarks, equals(35));
-      expect(item1.currentMarks, equals(35));
-      expect(item1.currentStatus, equals('PRESENT'));
-      expect(item1.correction, isNotNull);
-      expect(item1.correction!.status, equals('Pending'));
-      expect(item1.correction!.marks, equals(40));
-      expect(item1.correction!.markStatus, equals('PRESENT'));
-      expect(
-        item1.correction!.reason,
-        equals('Re-evaluation of question 4'),
-      );
-      expect(item1.correction!.requestedBy, equals('sbranch'));
-      expect(
-        item1.correction!.requestedDate,
-        equals(DateTime.parse('2026-09-12T06:13:10.716Z')),
-      );
-      expect(item1.history, isEmpty);
+        // First student
+        final item1 = response.data[0];
+        expect(item1.examId, equals(30));
+        expect(item1.studentId, equals(41292));
+        expect(item1.studentName, equals('Sree'));
+        expect(item1.rollNo, equals('123123'));
+        expect(item1.admissionNumber, equals('123123'));
+        expect(item1.section, equals('A'));
+        expect(item1.classId, equals(3890));
+        expect(item1.standard, equals('Standard 10'));
+        expect(item1.examName, equals('assignment test - 1'));
+        expect(item1.subject, equals('Telugu'));
+        expect(item1.maximumMarks, equals(50));
+        expect(item1.passingMarks, equals(35));
+        expect(item1.currentMarks, equals(35));
+        expect(item1.currentStatus, equals('PRESENT'));
+        expect(item1.correction, isNotNull);
+        expect(item1.correction!.status, equals('Pending'));
+        expect(item1.correction!.marks, equals(40));
+        expect(item1.correction!.markStatus, equals('PRESENT'));
+        expect(item1.correction!.reason, equals('Re-evaluation of question 4'));
+        expect(item1.correction!.requestedBy, equals('sbranch'));
+        expect(
+          item1.correction!.requestedDate,
+          equals(DateTime.parse('2026-09-12T06:13:10.716Z')),
+        );
+        expect(item1.history, isEmpty);
 
-      // Second student
-      final item2 = response.data[1];
-      expect(item2.examId, equals(30));
-      expect(item2.studentId, equals(41294));
-      expect(item2.studentName, equals('T Varshitha Reddy'));
-      expect(item2.rollNo, equals('TNS1234'));
-      expect(item2.correction, isNotNull);
-      expect(item2.correction!.status, equals('Pending'));
-      expect(
-        item2.correction!.statusAt,
-        equals(DateTime.parse('2026-09-12T06:59:34.077Z')),
-      );
-      expect(item2.correction!.requestedId, equals(3));
-      expect(item2.correction!.requestedBy, equals('Bsan@icue'));
+        // Second student
+        final item2 = response.data[1];
+        expect(item2.examId, equals(30));
+        expect(item2.studentId, equals(41294));
+        expect(item2.studentName, equals('T Varshitha Reddy'));
+        expect(item2.rollNo, equals('TNS1234'));
+        expect(item2.correction, isNotNull);
+        expect(item2.correction!.status, equals('Pending'));
+        expect(
+          item2.correction!.statusAt,
+          equals(DateTime.parse('2026-09-12T06:59:34.077Z')),
+        );
+        expect(item2.correction!.requestedId, equals(3));
+        expect(item2.correction!.requestedBy, equals('Bsan@icue'));
 
-      expect(item2.history.length, equals(1));
-      final h = item2.history[0];
-      expect(h.oldMarks, isNull);
-      expect(h.oldStatus, equals('NA'));
-      expect(h.correctionMarks, equals(38));
-      expect(h.correctionMarkStatus, equals('PRESENT'));
-      expect(h.reason, equals('By mistake Absent select'));
-      expect(h.requestedId, equals(3));
-      expect(h.requestedBy, equals('Bsan@icue'));
-      expect(
-        h.requestedDate,
-        equals(DateTime.parse('2026-09-12T06:46:07.262Z')),
-      );
-      expect(h.decision, equals('Approved'));
-      expect(h.approvedId, equals(3));
-      expect(h.approvedBy, equals('Bsan@icue'));
-      expect(
-        h.approvedDate,
-        equals(DateTime.parse('2026-09-12T06:47:36.260Z')),
-      );
-      expect(
-        h.remarks,
-        equals('Marks verified and accepted by Principal'),
-      );
+        expect(item2.history.length, equals(1));
+        final h = item2.history[0];
+        expect(h.oldMarks, isNull);
+        expect(h.oldStatus, equals('NA'));
+        expect(h.correctionMarks, equals(38));
+        expect(h.correctionMarkStatus, equals('PRESENT'));
+        expect(h.reason, equals('By mistake Absent select'));
+        expect(h.requestedId, equals(3));
+        expect(h.requestedBy, equals('Bsan@icue'));
+        expect(
+          h.requestedDate,
+          equals(DateTime.parse('2026-09-12T06:46:07.262Z')),
+        );
+        expect(h.decision, equals('Approved'));
+        expect(h.approvedId, equals(3));
+        expect(h.approvedBy, equals('Bsan@icue'));
+        expect(
+          h.approvedDate,
+          equals(DateTime.parse('2026-09-12T06:47:36.260Z')),
+        );
+        expect(h.remarks, equals('Marks verified and accepted by Principal'));
 
-      // Roundtrip test
-      final outJson = response.toJson();
-      expect(outJson['err'], isFalse);
-      expect(outJson['data'], isList);
-      expect((outJson['data'] as List).length, equals(2));
-    });
+        // Roundtrip test
+        final outJson = response.toJson();
+        expect(outJson['err'], isFalse);
+        expect(outJson['data'], isList);
+        expect((outJson['data'] as List).length, equals(2));
+      },
+    );
 
     test('MarksCorrectionItem copyWith works correctly', () {
       final item = MarksCorrectionItem(
@@ -255,10 +252,7 @@ void main() {
         currentStatus: 'PRESENT',
       );
 
-      final copy = item.copyWith(
-        currentMarks: 40,
-        studentName: 'Sree Updated',
-      );
+      final copy = item.copyWith(currentMarks: 40, studentName: 'Sree Updated');
 
       expect(copy.examId, equals(30));
       expect(copy.studentId, equals(41292));

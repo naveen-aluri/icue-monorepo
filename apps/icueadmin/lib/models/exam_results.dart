@@ -151,13 +151,13 @@ class SubjectMark {
     subjectId: json['SubjectId'] is int
         ? json['SubjectId'] as int
         : (json['ExamId'] is int
-            ? json['ExamId'] as int
-            : int.tryParse(
-                    json['SubjectId']?.toString() ??
-                        json['ExamId']?.toString() ??
-                        '',
-                  ) ??
-                  0),
+              ? json['ExamId'] as int
+              : int.tryParse(
+                      json['SubjectId']?.toString() ??
+                          json['ExamId']?.toString() ??
+                          '',
+                    ) ??
+                    0),
     subject: json['Subject']?.toString() ?? '',
     marks: json['Marks'] is num
         ? json['Marks'] as num
