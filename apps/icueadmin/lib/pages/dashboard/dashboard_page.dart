@@ -28,6 +28,8 @@ const Map<String, String> _iconsMap = {
   'layout.logbook': 'assets/dashboard/log-book.png',
   'layout.dropboarding': 'assets/dashboard/student-drop.png',
   'layout.fm_mycleaningtasks': 'assets/dashboard/log-book.png',
+  'layout.classattendance': 'assets/dashboard/reports.png',
+  'layout.classattendancestats': 'assets/dashboard/reports.png',
 };
 
 class DashboardPage extends StatefulWidget {
@@ -144,75 +146,68 @@ class _DashboardPageState extends State<DashboardPage> {
         child: showBasicFacilityFlow
             ? const _BasicFacilityCleanerDashboard()
             : (commonProvider.loading &&
-                    commonProvider.appSettings == null &&
-                    isFmsCleaner)
-                ? const Center(child: CircularProgressIndicator())
-                : ValueListenableBuilder(
-                    valueListenable:
-                        HiveService.getActionsByRoleBox.listenable(),
-                    builder: (context, box, _) {
-                      final actions = box.values.toList();
-                      if (actions.isEmpty) {
-                        return const NoDataWidget(
-                          size: 250,
-                          msg:
-                              "You don't have access to any features. Please contact your administrator.",
-                        );
-                      }
+                  commonProvider.appSettings == null &&
+                  isFmsCleaner)
+            ? const Center(child: CircularProgressIndicator())
+            : ValueListenableBuilder(
+                valueListenable: HiveService.getActionsByRoleBox.listenable(),
+                builder: (context, box, _) {
+                  final actions = box.values.toList();
+                  if (actions.isEmpty) {
+                    return const NoDataWidget(
+                      size: 250,
+                      msg:
+                          "You don't have access to any features. Please contact your administrator.",
+                    );
+                  }
 
-                      return ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 16,
-                        ),
-                        itemCount: actions.length,
-                        itemBuilder: (context, index) {
-                          final item = actions[index];
-                          final iconPath = _iconsMap[item.routeState];
-                          return Card(
-                            elevation: 1,
-                            margin: const EdgeInsets.only(bottom: 10),
-                            child: ListTile(
-                              onTap: () => context.go('/${item.routeState}'),
-                              leading: Padding(
-                                padding: const EdgeInsets.only(
-                                  top: 5,
-                                  bottom: 5,
-                                ),
-                                child: SizedBox(
-                                  width: 56,
-                                  height: 56,
-                                  child: iconPath != null
-                                      ? Image.asset(
-                                          iconPath,
-                                          errorBuilder: (_, _, _) =>
-                                              CacheImage(
-                                            url: item.icon,
-                                            size: 56,
-                                          ),
-                                        )
-                                      : CacheImage(url: item.icon, size: 56),
-                                ),
-                              ),
-                              title: Text(
-                                item.displayName,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                  color: Theme.of(context).primaryColorDark,
-                                ),
-                              ),
-                              trailing: Icon(
-                                Icons.arrow_forward_ios,
-                                size: 24,
-                                color: Theme.of(context).primaryColorDark,
-                              ),
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 16,
+                    ),
+                    itemCount: actions.length,
+                    itemBuilder: (context, index) {
+                      final item = actions[index];
+                      final iconPath = _iconsMap[item.routeState];
+                      return Card(
+                        elevation: 1,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        child: ListTile(
+                          onTap: () => context.go('/${item.routeState}'),
+                          leading: Padding(
+                            padding: const EdgeInsets.only(top: 5, bottom: 5),
+                            child: SizedBox(
+                              width: 56,
+                              height: 56,
+                              child: iconPath != null
+                                  ? Image.asset(
+                                      iconPath,
+                                      errorBuilder: (_, _, _) =>
+                                          CacheImage(url: item.icon, size: 56),
+                                    )
+                                  : CacheImage(url: item.icon, size: 56),
                             ),
-                          );
-                        },
+                          ),
+                          title: Text(
+                            item.displayName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              color: Theme.of(context).primaryColorDark,
+                            ),
+                          ),
+                          trailing: Icon(
+                            Icons.arrow_forward_ios,
+                            size: 24,
+                            color: Theme.of(context).primaryColorDark,
+                          ),
+                        ),
                       );
                     },
-                  ),
+                  );
+                },
+              ),
       ),
     );
   }
@@ -313,10 +308,7 @@ class _BasicFacilityCleanerDashboard extends StatelessWidget {
 
             // Simple 3-step hint badge
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(16),
