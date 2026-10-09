@@ -909,21 +909,19 @@ class IcueFaceCameraActivity : ComponentActivity() {
     ) {
         if (isFinishing || isDestroyed || completed || activeSession.sdk.isClosed) return
         try {
-            val recognitions = if (activeSession.roster.isEmpty()) {
-                emptyList()
-            } else {
-                activeSession.sdk.recognizeYuv420(
-                    frame = frame,
-                    profiles = activeSession.roster,
-                    mode = RecognitionMode.MULTI,
-                    maxFaces = activeSession.maxFaces,
-                    threshold = activeSession.threshold,
-                )
-            }
+            // Empty roster still runs detection: every face comes back unmatched (unknown).
+            val recognitions = activeSession.sdk.recognizeYuv420(
+                frame = frame,
+                profiles = activeSession.roster,
+                mode = RecognitionMode.MULTI,
+                maxFaces = activeSession.maxFaces,
+                threshold = activeSession.threshold,
+            )
             if (isFinishing || isDestroyed || completed) return
             val nowMs = System.currentTimeMillis()
             var confirmedUnrecognizedFace: IcueRecognitionResult? = null
             var anyFaceScanning = false
+            var frameUnrecognized = 0
             val faceLabels = mutableListOf<String>()
             val faceMatchedList = mutableListOf<Boolean>()
 
@@ -971,6 +969,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
                     faceMatchedList.add(true)
                 } else {
                     // Face is not currently matched to the roster.
+                    frameUnrecognized++
                     // Find or create an unrecognized tracker to give the student time to properly scan.
                     var tracker = unrecognizedTrackers.firstOrNull { t ->
                         (recognition.boundingBox.trackingId != null && t.trackingId == recognition.boundingBox.trackingId) ||
@@ -1014,6 +1013,7 @@ class IcueFaceCameraActivity : ComponentActivity() {
 
             // Remove trackers for faces that have left the screen (> 1500ms since last seen)
             unrecognizedTrackers.removeAll { nowMs - it.lastSeenMs > 1500L }
+            unrecognizedCount = maxOf(unrecognizedCount, frameUnrecognized)
 
             val (width, height) = frame.outputDimensions()
             val faces = recognitions.map { it.boundingBox }

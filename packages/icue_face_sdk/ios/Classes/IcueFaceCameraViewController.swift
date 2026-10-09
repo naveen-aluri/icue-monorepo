@@ -576,6 +576,8 @@ internal class IcueFaceCameraViewController: UIViewController, AVCaptureVideoDat
 
                     // Remove stale trackers for faces that left the frame
                     self.unrecognizedTrackers.removeAll { nowMs - $0.lastSeenMs > 1500 }
+                    let frameUnrecognized = results.filter { !$0.matched || $0.personId == nil }.count
+                    self.unrecognizedCount = max(self.unrecognizedCount, frameUnrecognized)
 
                     let recognitionsMap = results.map { $0.toMap() }
                     let facesMap = boxes.map { $0.toMap() }
